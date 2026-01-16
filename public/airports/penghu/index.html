@@ -635,9 +635,11 @@ function renderFlights(flights) {
 
     // --- Table row ---
     const tr = document.createElement('tr');
-    if (isUpcoming && !firstUpcomingRow) {
-      tr.className = 'upcoming-flight';
-      firstUpcomingRow = tr;
+    if (isUpcoming) {
+      tr.classList.add('upcoming-flight');
+      if (!firstUpcomingRow) {
+        firstUpcomingRow = tr;
+      }
     }
     tr.innerHTML = `
       <td>${safeText(f.Air)}</td>
@@ -655,9 +657,11 @@ function renderFlights(flights) {
     // --- Mobile card ---
     const card = document.createElement('div');
     card.className = 'card';
-    if (isUpcoming && !firstUpcomingCard) {
+    if (isUpcoming) {
       card.classList.add('upcoming-flight-card');
-      firstUpcomingCard = card;
+      if (!firstUpcomingCard) {
+        firstUpcomingCard = card;
+      }
     }
     card.innerHTML = `
       <div class="card-title">${safeText(f.Air)} ${safeText(f.FlightNo)}</div>
