@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台灣國內航班查詢</title>
+  <style>
+    :root {
+      --ink-900: #0f172a;
+      --ink-600: #475569;
+      --sky-500: #0ea5e9;
+      --sky-600: #0284c7;
+      --stone-50: #f8fafc;
+      --card-bg: #ffffff;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: var(--stone-50);
+      color: var(--ink-900);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      padding: 36px 20px 48px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 3vw, 34px);
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.85;
+      font-size: 15px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: -30px auto 0;
+      padding: 0 20px 40px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 18px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 180px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--ink-600);
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      width: fit-content;
+    }
+
+    .badge.pending {
+      background: #e2e8f0;
+      color: #64748b;
+    }
+
+    .card-link {
+      text-decoration: none;
+      color: white;
+      background: var(--sky-500);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      width: fit-content;
+      transition: background 0.2s ease;
+    }
+
+    .card-link:hover {
+      background: var(--sky-600);
+    }
+
+    .card--disabled {
+      background: #f1f5f9;
+      box-shadow: none;
+      border: 1px dashed #cbd5f5;
+    }
+
+    .card--disabled .card-link {
+      background: #cbd5f5;
+      color: #475569;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    footer {
+      margin-top: 28px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>台灣國內航班即時查詢</h1>
+    <p>選擇機場後，即可查看即時航班資料。新機場將依序加入。</p>
+  </header>
+
+  <main>
+    <section class="grid">
+      <article class="card">
+        <span class="badge">已上線</span>
+        <h2>澎湖馬公機場</h2>
+        <p>提供即時抵達航班列表，支援搜尋與來源地篩選。</p>
+        <a class="card-link" href="./airports/penghu/index.html">進入航班頁</a>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>臺北松山機場</h2>
+        <p>資料來源整理中，預計提供即時到達與延誤資訊。</p>
+        <span class="card-link">即將開放</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>臺中清泉崗機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">即將開放</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>高雄小港機場</h2>
+        <p>排程中，預計整合即時航班資料。</p>
+        <span class="card-link">即將開放</span>
+      </article>
+    </section>
+
+    <footer>資料來源與整合細節請見專案文件。</footer>
+  </main>
+</body>
+</html>

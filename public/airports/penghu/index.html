@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>澎湖馬公機場航班即時監控</title>
+
+<style>
+/* 🌊 澎湖風情配色主題 */
+:root {
+  --penghu-ocean: #0891b2;        /* 碧海藍 */
+  --penghu-sunset: #f97316;       /* 夕陽橘 */
+  --penghu-basalt: #1e293b;       /* 玄武岩深灰 */
+  --penghu-sunrise: #fbbf24;      /* 日出金黃 */
+  --penghu-coral: #fb7185;        /* 珊瑚粉 */
+  --penghu-cactus: #10b981;       /* 仙人掌綠 */
+  --penghu-sky: #38bdf8;          /* 天空藍 */
+  --penghu-sand: #fef3c7;         /* 沙灘米 */
+  --penghu-wave: #06b6d4;         /* 海浪青 */
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  background: linear-gradient(135deg, var(--penghu-sand) 0%, #f0f9ff 100%);
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+header {
+  background: linear-gradient(135deg, var(--penghu-ocean) 0%, var(--penghu-basalt) 100%);
+  color: white;
+  padding: calc(14px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) 14px calc(18px + env(safe-area-inset-left));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-link {
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.2s ease;
+}
+
+.home-link:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+#status {
+  font-size: 13px;
+  opacity: .9;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  #status .status-last-updated-label {
+    display: none;
+  }
+
+  .home-link {
+    display: none;
+  }
+}
+
+#container {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+body.map-disabled #right {
+  display: none;
+}
+
+body.map-disabled #left {
+  width: 100%;
+}
+
+/* ===== 搜尋框 ===== */
+#searchBox {
+  padding: 12px;
+  background: linear-gradient(to right, rgba(251, 113, 133, 0.05), rgba(56, 189, 248, 0.05));
+  border-bottom: 3px solid var(--penghu-wave);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.1);
+}
+
+#searchContainer {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 901px) {
+  #searchContainer {
+    flex-wrap: nowrap;
+  }
+}
+
+#searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #64748b;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#searchInputWrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+#searchInput {
+  width: 100%;
+  padding: 10px 38px 10px 40px;
+  font-size: 15px;
+  border: 2px solid var(--penghu-sky);
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+#originFilter {
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 2px solid var(--penghu-cactus);
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  background: white;
+  cursor: pointer;
+  color: #1e293b;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+#originFilter:focus {
+  outline: none;
+  border-color: var(--penghu-ocean);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+}
+
+#originFilter.has-value {
+  border-color: var(--penghu-ocean);
+  background: linear-gradient(to right, #d1fae5, #ecfeff);
+}
+
+@media (max-width: 900px) {
+  #searchInputWrapper {
+    flex: 1 1 100%;
+  }
+
+  #originFilter {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+#searchInput:focus {
+  outline: none;
+  border-color: var(--penghu-sunset);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+#searchInput:focus + #searchIcon {
+  color: var(--penghu-sunset);
+}
+
+#searchInput::placeholder {
+  color: #94a3b8;
+}
+
+#searchInput.has-value {
+  border-color: var(--penghu-ocean);
+  background: linear-gradient(to right, #ecfeff, #fef3c7);
+}
+
+#searchInput.has-value ~ #searchIcon {
+  color: var(--penghu-ocean);
+}
+
+#searchHint {
+  font-size: 12px;
+  color: var(--penghu-ocean);
+  margin-top: 6px;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(to right, rgba(8, 145, 178, 0.1), transparent);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+#searchHint.visible {
+  display: flex;
+}
+
+#searchHint svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ===== 左側列表 ===== */
+#left {
+  width: 50%;
+  overflow: hidden;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+#leftContent {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 10px;
+  position: relative;
+}
+
+#flightTableDesktop {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#flightTableDesktop th,
+#flightTableDesktop td {
+  padding: 6px;
+  border-bottom: 1px solid #e0f2fe;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#flightTableDesktop th {
+  background: linear-gradient(135deg, var(--penghu-ocean), var(--penghu-wave));
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.status-Arrived {
+  background: linear-gradient(135deg, var(--penghu-cactus), #059669);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.status-OnTime {
+  background: linear-gradient(135deg, var(--penghu-ocean), var(--penghu-sky));
+  color: #fff;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 4px rgba(8, 145, 178, 0.3);
+}
+
+.status-Delayed {
+  background: linear-gradient(135deg, var(--penghu-sunset), #ea580c);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3);
+}
+
+.status-Waiting {
+  background: linear-gradient(135deg, var(--penghu-sand), #fde68a);
+  color: #78716c;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.status-Cancelled {
+  background: linear-gradient(135deg, var(--penghu-coral), #f43f5e);
+  color: #fff;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 4px rgba(251, 113, 133, 0.3);
+}
+
+/* 未到達航班高亮 */
+.upcoming-flight {
+  background-color: rgba(251, 191, 36, 0.1);
+  border-left: 3px solid var(--penghu-sunrise);
+}
+
+.upcoming-flight-card {
+  border-left: 4px solid var(--penghu-sunrise);
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.3);
+}
+
+/* 預設隱藏卡片容器（桌面版） */
+#cardContainer {
+  display: none;
+}
+
+/* 卡片樣式（預先定義，避免 FOUC） */
+.card {
+  background: linear-gradient(135deg, white, #fafafa);
+  margin: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.15);
+  display: none;
+  border-left: 4px solid var(--penghu-ocean);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(8, 145, 178, 0.25);
+  border-left-color: var(--penghu-sunset);
+}
+
+.card-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+  font-size: 16px;
+  color: var(--penghu-basalt);
+  background: linear-gradient(135deg, var(--penghu-ocean), var(--penghu-sunset));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-row {
+  font-size: 14px;
+  margin: 2px 0;
+  color: #475569;
+}
+
+.card-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+/* ===== 地圖 ===== */
+#right {
+  width: 50%;
+  box-sizing: border-box;
+}
+
+#map {
+  height: 100%;
+}
+
+/* ===== 手機模式 ===== */
+@media (max-width: 900px) {
+  #right {
+    display: none !important;
+  }
+
+  #left {
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* 隱藏我們的航班表格 */
+  #flightTableDesktop {
+    display: none !important;
+  }
+
+  /* 顯示卡片容器和卡片 */
+  #cardContainer {
+    display: block !important;
+  }
+
+  .card {
+    display: block !important;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <strong>✈ 澎湖馬公機場航班即時監控</strong>
+  <div class="header-actions">
+    <a class="home-link" href="../../index.html">機場總覽</a>
+    <span id="status">讀取中…</span>
+  </div>
+</header>
+
+<div id="container">
+  <div id="left">
+    <div id="searchBox">
+      <div id="searchContainer">
+        <div id="searchInputWrapper">
+          <input
+            type="search"
+            id="searchInput"
+            placeholder="搜尋航空、航班或機型..."
+            autocomplete="off"
+          >
+          <svg id="searchIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <select id="originFilter">
+          <option value="">全部來源地</option>
+        </select>
+      </div>
+      <div id="searchHint">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+        </svg>
+        <span id="searchHintText">正在使用搜尋過濾,僅顯示符合的航班</span>
+      </div>
+    </div>
+
+    <div id="leftContent">
+      <table id="flightTableDesktop">
+        <thead>
+          <tr>
+            <th>航空</th>
+            <th>航班</th>
+            <th>來自</th>
+            <th>機型</th>
+            <th>表定起飛</th>
+            <th>實際起飛</th>
+            <th>表定到達</th>
+            <th>預估/實際到達</th>
+            <th>備註</th>
+          </tr>
+        </thead>
+        <tbody id="flightTable"></tbody>
+      </table>
+
+      <div id="cardContainer"></div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="map"></div>
+  </div>
+</div>
+
+<script>
+// @ts-check
+let map;
+let refreshHandle = null;
+let allFlights = []; // 儲存所有航班資料
+let searchTerm = ''; // 目前搜尋關鍵字
+let originFilter = ''; // 目前來源地篩選
+const isMobile = window.matchMedia('(max-width: 900px)').matches;
+const SEARCH_STORAGE_KEY = 'flight_search_term'; // localStorage key
+const ORIGIN_STORAGE_KEY = 'flight_origin_filter'; // localStorage key for origin filter
+const ENABLE_MAP = false; // 需要顯示地圖時改成 true
+const API_URL = 'https://duotifylearnfiles.blob.core.windows.net/flight-data/data-penghu.jsonp';
+const JSONP_CALLBACK_NAME = '__penghuFlightDataCallback';
+const JSONP_TIMEOUT_MS = 8000;
+
+if (!ENABLE_MAP) {
+  document.body.classList.add('map-disabled');
+}
+
+// 只在桌面版動態載入 Leaflet
+function loadLeaflet() {
+  return new Promise((resolve, reject) => {
+    if (isMobile) {
+      resolve();
+      return;
+    }
+
+    // 載入 CSS
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+
+    // 載入 JS
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.body.appendChild(script);
+  });
+}
+
+function initMap() {
+  if (isMobile || typeof L === 'undefined') return;
+
+  map = L.map('map').setView([23.57, 119.63], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+}
+
+/**
+ * 搜尋過濾邏輯
+ * @param {Array} flights
+ * @param {string} term - 搜尋關鍵字
+ * @param {string} origin - 來源地篩選
+ * @returns {Array}
+ */
+function filterFlights(flights, term, origin) {
+  let result = flights;
+
+  // 先篩選來源地
+  if (origin && origin.trim() !== '') {
+    result = result.filter(f => getOriginText(f) === origin);
+  }
+
+  // 再套用搜尋關鍵字
+  if (term && term.trim() !== '') {
+    const lowerTerm = term.toLowerCase().trim();
+    result = result.filter(f => {
+      const air = safeText(f.Air).toLowerCase();
+      const flightNo = safeText(f.FlightNo).toLowerCase();
+      const aircraft = safeText(f.Aircraft).toLowerCase();
+
+      return air.includes(lowerTerm) ||
+             flightNo.includes(lowerTerm) ||
+             aircraft.includes(lowerTerm);
+    });
+  }
+
+  return result;
+}
+
+/**
+ * UI Render: table + cards
+ * @param {Array} flights
+ */
+function renderFlights(flights) {
+  const tbody = document.getElementById('flightTable');
+  const cardBox = document.getElementById('cardContainer');
+
+  tbody.innerHTML = '';
+  cardBox.innerHTML = '';
+
+  const now = new Date();
+  let firstUpcomingRow = null;
+  let firstUpcomingCard = null;
+
+  flights.forEach(f => {
+    const statusClass = f.StatusClass ? `status-${f.StatusClass}` : '';
+
+    // 判斷是否為未到達航班（到達時間在當前時間之後）
+    const isUpcoming = isUpcomingFlight(f, now);
+
+    // --- Table row ---
+    const tr = document.createElement('tr');
+    if (isUpcoming && !firstUpcomingRow) {
+      tr.className = 'upcoming-flight';
+      firstUpcomingRow = tr;
+    }
+    tr.innerHTML = `
+      <td>${safeText(f.Air)}</td>
+      <td>${safeText(f.FlightNo)}</td>
+      <td>${safeText(f.Origin)}</td>
+      <td>${safeText(f.Aircraft || f.STs)}</td>
+      <td>${safeText(f.STs)}</td>
+      <td>${safeText(f.ATs)}</td>
+      <td>${safeText(f.STe)}</td>
+      <td>${safeText(f.ATe)}</td>
+      <td class="${statusClass}">${safeText(f.Remark)}</td>
+    `;
+    tbody.appendChild(tr);
+
+    // --- Mobile card ---
+    const card = document.createElement('div');
+    card.className = 'card';
+    if (isUpcoming && !firstUpcomingCard) {
+      card.classList.add('upcoming-flight-card');
+      firstUpcomingCard = card;
+    }
+    card.innerHTML = `
+      <div class="card-title">${safeText(f.Air)} ${safeText(f.FlightNo)}</div>
+      <div class="card-row">來自：${safeText(f.Origin)}</div>
+      <div class="card-row">機型：${safeText(f.Aircraft || f.STs)}</div>
+      <div class="card-row">起飛：表定 ${safeText(f.STs)}（實際：${safeText(f.ATs) || '---'}）</div>
+      <div class="card-row">到達：表定 ${safeText(f.STe)}（預估/實際：${safeText(f.ATe)}）</div>
+      <span class="card-badge ${statusClass}">${safeText(f.Remark)}</span>
+    `;
+    cardBox.appendChild(card);
+  });
+
+  // 自動滾動到第一筆未到達航班
+  scrollToUpcoming(firstUpcomingRow, firstUpcomingCard);
+}
+
+/**
+ * 更新右上角狀態顯示（最後更新時間）
+ * - 桌面版：顯示「最後更新：HH:MM:SS」
+ * - 行動版：透過 CSS 隱藏「最後更新：」，僅顯示時間
+ * @param {number|string|Date} timestamp
+ */
+function setStatusLastUpdated(timestamp) {
+  const statusEl = document.getElementById('status');
+  if (!statusEl) return;
+
+  let labelEl = statusEl.querySelector('.status-last-updated-label');
+  let timeEl = statusEl.querySelector('.status-last-updated-time');
+
+  if (!labelEl || !timeEl) {
+    statusEl.textContent = '';
+
+    labelEl = document.createElement('span');
+    labelEl.className = 'status-last-updated-label';
+    labelEl.textContent = '最後更新：';
+
+    timeEl = document.createElement('span');
+    timeEl.className = 'status-last-updated-time';
+
+    statusEl.appendChild(labelEl);
+    statusEl.appendChild(timeEl);
+  }
+
+  timeEl.textContent = new Date(timestamp).toLocaleTimeString('zh-TW');
+}
+
+/**
+ * 此函式負責「吃後端回傳」→「轉成 flights 陣列」→「渲染」
+ */
+function renderDataWrapper(res) {
+  // 後端資料結構：{ timestamp, data: { status, data: [...] } }
+  const flights = res?.data?.data;
+
+  if (!res || !res.timestamp || !Array.isArray(flights)) {
+    console.error('[renderDataWrapper] 資料格式錯誤', res);
+    document.getElementById('status').innerText = '資料格式錯誤';
+    return;
+  }
+
+  setStatusLastUpdated(res.timestamp);
+
+  allFlights = flights; // 儲存所有航班資料
+  updateOriginFilter(); // 更新來源地篩選選項
+  applySearchAndRender(); // 套用搜尋並渲染
+}
+
+async function loadData() {
+  try {
+    const result = await loadJsonp(API_URL, {
+      timeoutMs: JSONP_TIMEOUT_MS
+    });
+
+    if (result.status === 'error') {
+      console.error('[loadData] API 錯誤', result.message);
+      document.getElementById('status').innerText = 'API 錯誤: ' + result.message;
+      return;
+    }
+
+    renderDataWrapper(result);
+  } catch (err) {
+    const errorDetail = err instanceof Error ? err.stack || err.message : String(err);
+    console.error('[loadData] 讀取失敗', errorDetail);
+    document.getElementById('status').innerText = '資料讀取失敗';
+  }
+}
+
+/**
+ * 判斷是否為未到達航班
+ * @param {Object} flight - 航班資料
+ * @param {Date} now - 當前時間
+ * @returns {boolean}
+ */
+function isUpcomingFlight(flight, now) {
+  // 取得到達時間字串 (格式：HH:MM)
+  const arrivalTimeStr = safeText(flight.ATe).trim();
+  if (!arrivalTimeStr || arrivalTimeStr === '') return false;
+
+  // 解析到達時間
+  const arrivalParts = arrivalTimeStr.split(':');
+  if (arrivalParts.length !== 2) return false;
+
+  const arrivalHour = parseInt(arrivalParts[0], 10);
+  const arrivalMinute = parseInt(arrivalParts[1], 10);
+
+  if (isNaN(arrivalHour) || isNaN(arrivalMinute)) return false;
+
+  // 建立今天的到達時間
+  const arrivalTime = new Date();
+  arrivalTime.setHours(arrivalHour, arrivalMinute, 0, 0);
+
+  // 比較時間（到達時間在當前時間之後）
+  return arrivalTime > now;
+}
+
+/**
+ * 自動滾動到第一筆未到達航班
+ * @param {HTMLElement} row - 桌面版表格列
+ * @param {HTMLElement} card - 行動版卡片
+ */
+function scrollToUpcoming(row, card) {
+  setTimeout(() => {
+    const leftContent = document.getElementById('leftContent');
+    if (isMobile && card && leftContent) {
+      // 行動版：只滾動內容容器，避免 iOS scrollIntoView 造成整頁上移
+      const top =
+        card.getBoundingClientRect().top -
+        leftContent.getBoundingClientRect().top +
+        leftContent.scrollTop;
+      leftContent.scrollTo({ top: Math.max(0, top - 10), behavior: 'smooth' });
+    } else if (!isMobile && row) {
+      // 桌面版：滾動到表格列（考慮固定標題的高度）
+      const thead = document.querySelector('#flightTableDesktop thead');
+      const theadHeight = thead ? thead.offsetHeight : 0;
+
+      // 計算滾動位置（row 相對於 leftContent 的位置 - 標題高度）
+      const rowTop = row.offsetTop - theadHeight - 10; // 減去 10px 作為緩衝
+      if (leftContent) leftContent.scrollTo({ top: rowTop, behavior: 'smooth' });
+    }
+  }, 300); // 延遲 300ms 確保渲染完成
+}
+
+/**
+ * 套用搜尋並重新渲染
+ */
+function applySearchAndRender() {
+  const filtered = filterFlights(allFlights, searchTerm, originFilter);
+  renderFlights(filtered);
+}
+
+/**
+ * 依筆畫排序城市名稱
+ * @param {Array<string>} cities
+ * @returns {Array<string>}
+ */
+function sortByStroke(cities) {
+  // 來源地排序規則：依台灣「由北到南」的地理順序
+  // - 優先以 IATA 三碼（字串尾端，例如：臺北TSA）判斷
+  // - 若無 IATA，則以常見城市名稱前綴判斷
+  // - 不在清單內者 fallback 回 zh-Hant-TW 字典序
+  const iataRank = new Map([
+    ['TSA', 10], // 臺北（松山）
+    ['RMQ', 20], // 臺中
+    ['CYI', 30], // 嘉義
+    ['TNN', 40], // 臺南
+    ['KHH', 50], // 高雄
+    ['CMJ', 60], // 七美（澎湖）
+  ]);
+
+  const prefixRank = new Map([
+    ['臺北', 10],
+    ['台北', 10],
+    ['臺中', 20],
+    ['台中', 20],
+    ['嘉義', 30],
+    ['臺南', 40],
+    ['台南', 40],
+    ['高雄', 50],
+    ['七美', 60],
+  ]);
+
+  /**
+   * @param {string} s
+   * @returns {number}
+   */
+  function getGeoRank(s) {
+    const text = safeText(s).trim();
+    if (!text) return Number.POSITIVE_INFINITY;
+
+    const m = text.match(/([A-Z]{3})$/);
+    if (m) {
+      const code = m[1];
+      const r = iataRank.get(code);
+      if (typeof r === 'number') return r;
+    }
+
+    for (const [prefix, r] of prefixRank.entries()) {
+      if (text.startsWith(prefix)) return r;
+    }
+
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return cities.sort((a, b) => {
+    const ra = getGeoRank(a);
+    const rb = getGeoRank(b);
+    if (ra !== rb) return ra - rb;
+    return String(a).localeCompare(String(b), 'zh-Hant-TW');
+  });
+}
+
+/**
+ * 更新來源地下拉選單選項
+ */
+function updateOriginFilter() {
+  const originSelect = document.getElementById('originFilter');
+  if (!originSelect) return;
+
+  // 取得所有不重複的來源地
+  const origins = [...new Set(allFlights.map(f => getOriginText(f)).filter(o => o !== ''))];
+
+  // 依筆畫排序
+  const sortedOrigins = sortByStroke(origins);
+
+  // 清空並重建選項
+  originSelect.innerHTML = '<option value="">全部來源地</option>';
+  sortedOrigins.forEach(origin => {
+    const option = document.createElement('option');
+    option.value = origin;
+    option.textContent = origin;
+    originSelect.appendChild(option);
+  });
+
+  // 恢復之前儲存的選擇（如果有的話）
+  if (originFilter) {
+    originSelect.value = originFilter;
+    updateOriginFilterUI(true);
+  }
+}
+
+/**
+ * 初始化搜尋功能
+ */
+function initSearch() {
+  const searchInput = document.getElementById('searchInput');
+  const originSelect = document.getElementById('originFilter');
+
+  // 從 localStorage 讀取上次的搜尋條件
+  const savedSearch = localStorage.getItem(SEARCH_STORAGE_KEY);
+  if (savedSearch) {
+    searchTerm = savedSearch;
+    searchInput.value = savedSearch;
+  }
+
+  // 從 localStorage 讀取上次的來源地篩選（實際選項會在資料載入後由 updateOriginFilter 恢復）
+  const savedOrigin = localStorage.getItem(ORIGIN_STORAGE_KEY);
+  if (savedOrigin) {
+    originFilter = savedOrigin;
+  }
+
+  // 初始 UI（提示需同時考慮搜尋與篩選）
+  updateSearchUI(!!searchTerm.trim());
+  updateOriginFilterUI(!!originFilter.trim());
+
+  // 監聽來源地篩選變更
+  originSelect.addEventListener('change', (e) => {
+    originFilter = e.target.value;
+
+    // 儲存到 localStorage
+    if (originFilter.trim()) {
+      localStorage.setItem(ORIGIN_STORAGE_KEY, originFilter);
+    } else {
+      localStorage.removeItem(ORIGIN_STORAGE_KEY);
+    }
+
+    updateOriginFilterUI(!!originFilter.trim());
+    applySearchAndRender();
+  });
+
+  const handleSearchChange = () => {
+    searchTerm = searchInput.value;
+
+    // 儲存到 localStorage
+    if (searchTerm.trim()) {
+      localStorage.setItem(SEARCH_STORAGE_KEY, searchTerm);
+    } else {
+      localStorage.removeItem(SEARCH_STORAGE_KEY);
+    }
+
+    updateSearchUI(!!searchTerm.trim());
+    applySearchAndRender();
+  };
+
+  // 監聽輸入事件（type="search" 的原生清除按鈕可能只觸發 search event）
+  searchInput.addEventListener('input', handleSearchChange);
+  searchInput.addEventListener('search', handleSearchChange);
+
+  // 鍵盤事件：按 Esc 清空搜尋
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      searchTerm = '';
+      searchInput.value = '';
+      originFilter = '';
+      originSelect.value = '';
+      localStorage.removeItem(SEARCH_STORAGE_KEY);
+      localStorage.removeItem(ORIGIN_STORAGE_KEY);
+      updateSearchUI(false);
+      updateOriginFilterUI(false);
+      applySearchAndRender();
+      searchInput.blur(); // 移除焦點
+    }
+  });
+}
+
+/**
+ * 更新搜尋 UI 狀態
+ * @param {boolean} hasSearch - 是否有搜尋條件
+ */
+function updateSearchUI(hasSearch) {
+  const searchInput = document.getElementById('searchInput');
+  const searchHint = document.getElementById('searchHint');
+  const hasFilter = !!originFilter.trim();
+
+  if (hasSearch || hasFilter) {
+    searchInput.classList.add('has-value');
+    searchHint.classList.add('visible');
+  } else {
+    searchInput.classList.remove('has-value');
+    searchHint.classList.remove('visible');
+  }
+}
+
+/**
+ * 更新來源地篩選 UI 狀態
+ * @param {boolean} hasFilter - 是否有篩選條件
+ */
+function updateOriginFilterUI(hasFilter) {
+  const originSelect = document.getElementById('originFilter');
+
+  if (hasFilter) {
+    originSelect.classList.add('has-value');
+  } else {
+    originSelect.classList.remove('has-value');
+  }
+
+  // 同時更新搜尋 UI（提示需要同時考慮搜尋和篩選）
+  updateSearchUI(!!searchTerm.trim());
+}
+
+function safeText(v) {
+  if (v === null || v === undefined) return '';
+  return String(v);
+}
+
+/**
+ * JSONP 載入工具
+ * @param {string} url
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<any>}
+ */
+function loadJsonp(url, options = {}) {
+  const timeoutMs = typeof options.timeoutMs === 'number' ? options.timeoutMs : 8000;
+  const callbackName = JSONP_CALLBACK_NAME;
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const separator = url.includes('?') ? '&' : '?';
+    let settled = false;
+    let timeoutId;
+
+    /**
+     * @param {any} data
+     */
+    function done(data) {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      cleanup();
+      resolve(data);
+    }
+
+    function cleanup() {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      try {
+        delete window[callbackName];
+      } catch (err) {
+        window[callbackName] = undefined;
+      }
+    }
+
+    window[callbackName] = done;
+    script.src = `${url}${separator}t=${Date.now()}`;
+    script.onerror = () => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      cleanup();
+      reject(new Error('JSONP 載入失敗'));
+    };
+
+    if (timeoutMs > 0) {
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error('JSONP 逾時'));
+      }, timeoutMs);
+    }
+
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * 取得「來自」顯示文字（相容不同資料欄位）
+ * docs/data.json 使用 Origin，例如："臺南TNN"
+ */
+function getOriginText(flight) {
+  return safeText(flight?.Origin || flight?.From).trim();
+}
+
+window.onload = async () => {
+  // 初始化搜尋功能（必須在載入資料前）
+  initSearch();
+
+  // 先載入資料
+  loadData();
+
+  // 只在桌面版載入地圖
+  if (ENABLE_MAP && !isMobile) {
+    try {
+      await loadLeaflet();
+      initMap();
+    } catch (err) {
+      console.error('[Leaflet] 載入失敗', err);
+    }
+
+    // 桌面版預設選中搜尋框
+    setTimeout(() => {
+      document.getElementById('searchInput').focus();
+    }, 100);
+  }
+
+  if (refreshHandle) clearInterval(refreshHandle);
+  refreshHandle = setInterval(loadData, 60000);
+};
+</script>
+
+</body>
+</html>

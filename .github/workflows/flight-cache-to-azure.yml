@@ -1,0 +1,80 @@
+name: Flight cache -> Azure Blob
+
+on:
+  # GitHub Actions cron uses UTC. Job 執行上限 6 小時 (360 分鐘)
+  # Asia/Taipei (UTC+8) 07:00-23:00 拆分成 3 個時段：
+  # 時段 1: 台灣 07:00-12:50 (5h50m) = UTC 23:00 觸發
+  # 時段 2: 台灣 13:00-18:50 (5h50m) = UTC 05:00 觸發
+  # 時段 3: 台灣 19:00-23:00 (4h00m) = UTC 11:00 觸發
+  schedule:
+    - cron: '0 23 * * *'  # 時段 1 啟動
+    - cron: '0 5 * * *'   # 時段 2 啟動
+    - cron: '0 11 * * *'  # 時段 3 啟動
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: '執行時長（分鐘），預設 60 分鐘'
+        required: false
+        default: '60'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-cache-${{ github.event_name == 'schedule' && 'auto' || 'manual' }}
+  cancel-in-progress: true  # 自動排程優先，手動執行會被取消
+
+jobs:
+  poll-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # GitHub Actions 上限 6 小時
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 判斷執行時段並設定持續時間
+        id: config
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 手動觸發：使用輸入的時長（秒）
+            minutes="${{ inputs.duration_minutes }}"
+            duration=$((minutes * 60))
+            echo "duration=$duration" >> $GITHUB_OUTPUT
+            echo "period=手動 (${minutes}分鐘)" >> $GITHUB_OUTPUT
+          else
+            # 自動排程：根據 UTC 時間判斷時段
+            hour=$(date -u +%H)
+            if [ "$hour" -eq 23 ]; then
+              # 時段 1: 台灣 07:00-12:50 (5h50m = 21000s)
+              echo "duration=21000" >> $GITHUB_OUTPUT
+              echo "period=1 (07:00-12:50)" >> $GITHUB_OUTPUT
+            elif [ "$hour" -eq 5 ]; then
+              # 時段 2: 台灣 13:00-18:50 (5h50m = 21000s)
+              echo "duration=21000" >> $GITHUB_OUTPUT
+              echo "period=2 (13:00-18:50)" >> $GITHUB_OUTPUT
+            elif [ "$hour" -eq 11 ]; then
+              # 時段 3: 台灣 19:00-23:00 (4h = 14400s)
+              echo "duration=14400" >> $GITHUB_OUTPUT
+              echo "period=3 (19:00-23:00)" >> $GITHUB_OUTPUT
+            else
+              # 非預期時間，預設 1 小時
+              echo "duration=3600" >> $GITHUB_OUTPUT
+              echo "period=非預期時段" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Poll and upload (時段 ${{ steps.config.outputs.period }})
+        env:
+          AZURE_CONTAINER_SAS_URL: ${{ secrets.AZURE_CONTAINER_SAS_URL }}
+          AZURE_BLOB_SAS_URL: ${{ secrets.AZURE_BLOB_SAS_URL }}
+          AZURE_DATA_BLOB_NAME: ${{ secrets.AZURE_DATA_BLOB_NAME }}
+          TIME_ZONE: Asia/Taipei
+          RUN_SECONDS: ${{ steps.config.outputs.duration }}
+          INTERVAL_SECONDS: '60'
+        run: node scripts/poll-flight-to-azure.mjs

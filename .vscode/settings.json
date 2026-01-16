@@ -1,0 +1,31 @@
+{
+    "chat.agent.maxRequests": 200,
+    "scm.defaultViewMode": "tree",
+    "breadcrumbs.enabled": true,
+
+    "editor.minimap.enabled": true,
+    "editor.minimap.renderCharacters": false,
+    "editor.unicodeHighlight.allowedLocales": {
+      "zh-hant": true
+    },
+
+    "git.autofetch": true,
+    "git.rebaseWhenSync": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "git.alwaysShowStagedChangesResourceGroup": true,
+
+    "typescript.referencesCodeLens.enabled": true,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "typescript.inlayHints.parameterNames.enabled": "literals",
+
+    "javascript.referencesCodeLens.enabled": true,
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "javascript.inlayHints.parameterNames.enabled": "literals",
+
+    "files.trimTrailingWhitespace": true,
+    "files.defaultLanguage": "${activeEditorLanguage}",
+    "files.associations": {
+        "*.gs": "javascript"
+    }
+}

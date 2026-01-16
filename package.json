@@ -1,0 +1,25 @@
+{
+  "name": "taiwan-airport-flights",
+  "version": "1.0.0",
+  "description": "台灣國內航班即時監控專案，整理多機場航班資料來源並提供 GitHub Pages 前端與輪詢腳本。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pages:build": "node scripts/minify-public.cjs",
+    "start": "node scripts/dev-server.mjs",
+    "preview": "npm run pages:build && serve public/dist"
+  },
+  "keywords": [],
+  "author": "Will 保哥 <doggy.huang@gmail.com> (https://blog.miniasp.com/)",
+  "license": "MIT",
+  "type": "commonjs",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "html-minifier-terser": "^7.2.0",
+    "serve": "^14.2.5"
+  }
+}

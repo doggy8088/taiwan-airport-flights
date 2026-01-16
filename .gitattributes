@@ -1,0 +1,20 @@
+# Normalize text files and enforce LF in the repo
+* text=auto eol=lf
+
+# Google Apps Script files are JavaScript
+*.gs linguist-language=JavaScript
+*.gs diff=javascript
+
+# Mark common binary formats
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.7z binary
+*.gz binary
+*.tgz binary
+
