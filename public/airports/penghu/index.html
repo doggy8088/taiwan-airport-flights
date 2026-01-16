@@ -626,6 +626,8 @@ function renderFlights(flights) {
   const now = new Date();
   let firstUpcomingRow = null;
   let firstUpcomingCard = null;
+  let lastRow = null;
+  let lastCard = null;
 
   flights.forEach(f => {
     const statusClass = f.StatusClass ? `status-${f.StatusClass}` : '';
@@ -653,6 +655,7 @@ function renderFlights(flights) {
       <td class="${statusClass}">${safeText(f.Remark)}</td>
     `;
     tbody.appendChild(tr);
+    lastRow = tr;
 
     // --- Mobile card ---
     const card = document.createElement('div');
@@ -672,10 +675,11 @@ function renderFlights(flights) {
       <span class="card-badge ${statusClass}">${safeText(f.Remark)}</span>
     `;
     cardBox.appendChild(card);
+    lastCard = card;
   });
 
   // 自動滾動到第一筆未到達航班
-  scrollToUpcoming(firstUpcomingRow, firstUpcomingCard);
+  scrollToUpcoming(firstUpcomingRow, firstUpcomingCard, lastRow, lastCard);
 }
 
 /**
@@ -778,26 +782,30 @@ function isUpcomingFlight(flight, now) {
 
 /**
  * 自動滾動到第一筆未到達航班
- * @param {HTMLElement} row - 桌面版表格列
- * @param {HTMLElement} card - 行動版卡片
+ * @param {HTMLElement|null} row - 桌面版表格列
+ * @param {HTMLElement|null} card - 行動版卡片
+ * @param {HTMLElement|null} lastRow - 桌面版最後一列
+ * @param {HTMLElement|null} lastCard - 行動版最後一卡片
  */
-function scrollToUpcoming(row, card) {
+function scrollToUpcoming(row, card, lastRow, lastCard) {
   setTimeout(() => {
     const leftContent = document.getElementById('leftContent');
-    if (isMobile && card && leftContent) {
+    const targetRow = row || lastRow;
+    const targetCard = card || lastCard;
+    if (isMobile && targetCard && leftContent) {
       // 行動版：只滾動內容容器，避免 iOS scrollIntoView 造成整頁上移
       const top =
-        card.getBoundingClientRect().top -
+        targetCard.getBoundingClientRect().top -
         leftContent.getBoundingClientRect().top +
         leftContent.scrollTop;
       leftContent.scrollTo({ top: Math.max(0, top - 10), behavior: 'smooth' });
-    } else if (!isMobile && row) {
+    } else if (!isMobile && targetRow) {
       // 桌面版：滾動到表格列（考慮固定標題的高度）
       const thead = document.querySelector('#flightTableDesktop thead');
       const theadHeight = thead ? thead.offsetHeight : 0;
 
       // 計算滾動位置（row 相對於 leftContent 的位置 - 標題高度）
-      const rowTop = row.offsetTop - theadHeight - 10; // 減去 10px 作為緩衝
+      const rowTop = targetRow.offsetTop - theadHeight - 10; // 減去 10px 作為緩衝
       if (leftContent) leftContent.scrollTo({ top: rowTop, behavior: 'smooth' });
     }
   }, 300); // 延遲 300ms 確保渲染完成
