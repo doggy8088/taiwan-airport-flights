@@ -58,9 +58,8 @@
     }
 
     .grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      column-count: 3;
+      column-gap: 16px;
     }
 
     .card {
@@ -71,7 +70,9 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      min-height: 180px;
+      break-inside: avoid;
+      margin: 0 0 16px;
+      width: 100%;
     }
 
     .card h2 {
@@ -173,12 +174,24 @@
         font-size: 12px;
       }
     }
+
+    @media (max-width: 980px) {
+      .grid {
+        column-count: 2;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        column-count: 1;
+      }
+    }
   </style>
 </head>
 <body>
   <header>
     <h1>台灣國內航班即時查詢</h1>
-    <p>選擇機場後，即可查看即時航班資料。新機場將依序加入。</p>
+    <p>選擇機場後，即可查看即時航班資料。</p>
   </header>
 
   <main>
@@ -192,23 +205,114 @@
 
       <article class="card card--disabled">
         <span class="badge pending">籌備中</span>
+        <h2>七美機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>望安機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
         <h2>臺北松山機場</h2>
         <p>資料來源整理中，預計提供即時到達與延誤資訊。</p>
-        <span class="card-link">即將開放</span>
+        <span class="card-link">尚未開發</span>
       </article>
 
       <article class="card card--disabled">
         <span class="badge pending">籌備中</span>
         <h2>臺中清泉崗機場</h2>
         <p>規劃中，將提供國內航班即時查詢。</p>
-        <span class="card-link">即將開放</span>
+        <span class="card-link">尚未開發</span>
       </article>
 
       <article class="card card--disabled">
         <span class="badge pending">籌備中</span>
         <h2>高雄小港機場</h2>
         <p>排程中，預計整合即時航班資料。</p>
-        <span class="card-link">即將開放</span>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>嘉義機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>臺南機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>恆春機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>花蓮機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>臺東機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>蘭嶼機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>綠島機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>金門尚義機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>馬祖南竿機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>馬祖北竿機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
+      </article>
+
+      <article class="card card--disabled">
+        <span class="badge pending">籌備中</span>
+        <h2>東引機場</h2>
+        <p>規劃中，將提供國內航班即時查詢。</p>
+        <span class="card-link">尚未開發</span>
       </article>
     </section>
 
