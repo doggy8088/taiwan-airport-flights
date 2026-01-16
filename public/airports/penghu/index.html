@@ -17,6 +17,7 @@
   --penghu-sky: #38bdf8;          /* 天空藍 */
   --penghu-sand: #fef3c7;         /* 沙灘米 */
   --penghu-wave: #06b6d4;         /* 海浪青 */
+  --footer-height: 56px;
 }
 
 html, body {
@@ -32,6 +33,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: var(--footer-height);
 }
 
 header {
@@ -247,6 +249,7 @@ body.map-disabled #left {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: 10px;
+  padding-bottom: calc(10px + var(--footer-height));
   position: relative;
 }
 
@@ -419,15 +422,43 @@ body.map-disabled #left {
 }
 
 footer {
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--footer-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px calc(0px + env(safe-area-inset-bottom));
   text-align: center;
-  font-size: 12px;
-  color: #475569;
-  background: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  color: #0f172a;
+  background: linear-gradient(90deg, rgba(255, 251, 235, 0.98), rgba(240, 249, 255, 0.98));
+  border-top: 1px solid rgba(8, 145, 178, 0.15);
+  box-shadow: 0 -10px 22px rgba(8, 145, 178, 0.16);
 }
 
 footer a {
-  color: inherit;
+  color: var(--penghu-ocean);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --footer-height: 72px;
+  }
+
+  footer {
+    font-size: 12px;
+    padding: 0 16px calc(4px + env(safe-area-inset-bottom));
+    text-align: center;
+  }
 }
 </style>
 </head>

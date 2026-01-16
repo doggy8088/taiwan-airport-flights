@@ -13,6 +13,7 @@
       --stone-50: #f8fafc;
       --card-bg: #ffffff;
       --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --footer-height: 56px;
     }
 
     * {
@@ -27,6 +28,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      padding-bottom: var(--footer-height);
     }
 
     header {
@@ -49,7 +51,7 @@
     main {
       max-width: 1100px;
       margin: -30px auto 0;
-      padding: 0 20px 40px;
+      padding: 0 20px calc(40px + var(--footer-height));
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -131,14 +133,45 @@
     }
 
     footer {
-      margin-top: 28px;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: var(--footer-height);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 16px;
+      background: linear-gradient(90deg, #0f172a, #1e293b);
       text-align: center;
-      color: #64748b;
-      font-size: 13px;
+      color: #e2e8f0;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.18);
     }
 
     footer a {
-      color: inherit;
+      color: #7dd3fc;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --footer-height: 72px;
+      }
+
+      footer {
+        flex-direction: column;
+        gap: 2px;
+        font-size: 13px;
+      }
     }
   </style>
 </head>
@@ -180,8 +213,8 @@
     </section>
 
     <footer>
-      <div>資料來源與整合細節請見專案文件。</div>
-      <div>本工具由 <a href="https://www.facebook.com/will.fans/" target="_blank" rel="noopener noreferrer">Will 保哥的技術交流中心</a> 設計、開發與維護</div>
+      <span>資料來源與整合細節請見專案文件。</span>
+      <span>本工具由 <a href="https://www.facebook.com/will.fans/" target="_blank" rel="noopener noreferrer">Will 保哥的技術交流中心</a> 設計、開發與維護</span>
     </footer>
   </main>
 </body>
