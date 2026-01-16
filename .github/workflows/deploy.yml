@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - gas-penghu-flight-monitor
+      - main
     paths:
       - 'public/**'
       - 'scripts/minify-public.cjs'
