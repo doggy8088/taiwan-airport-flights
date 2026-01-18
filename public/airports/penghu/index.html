@@ -271,6 +271,10 @@ body.map-disabled #left {
   white-space: nowrap;
 }
 
+#flightTableDesktop td.remark-cell {
+  text-align: left;
+}
+
 #flightTableDesktop th {
   background: linear-gradient(135deg, var(--penghu-ocean), var(--penghu-wave));
   color: white;
@@ -631,6 +635,7 @@ function renderFlights(flights) {
 
   flights.forEach(f => {
     const statusClass = f.StatusClass ? `status-${f.StatusClass}` : '';
+    const remarkClass = statusClass ? `remark-cell ${statusClass}` : 'remark-cell';
     const remarkDisplay = getRemarkDisplay(f);
 
     // 判斷是否為未到達航班（到達時間在當前時間之後）
@@ -653,7 +658,7 @@ function renderFlights(flights) {
       <td>${safeText(f.ATs)}</td>
       <td>${safeText(f.STe)}</td>
       <td>${safeText(f.ATe)}</td>
-      <td class="${statusClass}">${remarkDisplay}</td>
+      <td class="${remarkClass}">${remarkDisplay}</td>
     `;
     tbody.appendChild(tr);
     lastRow = tr;
