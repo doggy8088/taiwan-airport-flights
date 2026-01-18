@@ -631,6 +631,7 @@ function renderFlights(flights) {
 
   flights.forEach(f => {
     const statusClass = f.StatusClass ? `status-${f.StatusClass}` : '';
+    const remarkDisplay = getRemarkDisplay(f);
 
     // 判斷是否為未到達航班（到達時間在當前時間之後）
     const isUpcoming = isUpcomingFlight(f, now);
@@ -652,7 +653,7 @@ function renderFlights(flights) {
       <td>${safeText(f.ATs)}</td>
       <td>${safeText(f.STe)}</td>
       <td>${safeText(f.ATe)}</td>
-      <td class="${statusClass}">${safeText(f.Remark)}</td>
+      <td class="${statusClass}">${remarkDisplay}</td>
     `;
     tbody.appendChild(tr);
     lastRow = tr;
@@ -672,7 +673,7 @@ function renderFlights(flights) {
       <div class="card-row">機型：${safeText(f.Aircraft || f.STs)}</div>
       <div class="card-row">起飛：表定 ${safeText(f.STs)}（實際：${safeText(f.ATs) || '---'}）</div>
       <div class="card-row">到達：表定 ${safeText(f.STe)}（預估/實際：${safeText(f.ATe)}）</div>
-      <span class="card-badge ${statusClass}">${safeText(f.Remark)}</span>
+      <span class="card-badge ${statusClass}">${remarkDisplay}</span>
     `;
     cardBox.appendChild(card);
     lastCard = card;
@@ -1021,6 +1022,41 @@ function updateOriginFilterUI(hasFilter) {
 function safeText(v) {
   if (v === null || v === undefined) return '';
   return String(v);
+}
+
+/**
+ * 取得備註顯示文字（前置狀態燈號）
+ * @param {Object} flight
+ * @returns {string}
+ */
+function getRemarkDisplay(flight) {
+  const remark = safeText(flight?.Remark).trim();
+  if (!remark) return '';
+
+  const emoji = getRemarkEmoji(flight?.StatusClass, remark);
+  return emoji ? `${emoji} ${remark}` : remark;
+}
+
+/**
+ * 備註狀態燈號（依 StatusClass 或備註文字判斷）
+ * @param {string} statusClass
+ * @param {string} remark
+ * @returns {string}
+ */
+function getRemarkEmoji(statusClass, remark) {
+  const className = safeText(statusClass).trim();
+  const remarkText = safeText(remark).trim();
+
+  if (className === 'Arrived') return '🟢';
+  if (className === 'OnTime') return '🔵';
+  if (className === 'Cancelled') return '🔴';
+
+  const lowerRemark = remarkText.toLowerCase();
+  if (remarkText.includes('已到') || lowerRemark.includes('arrived')) return '🟢';
+  if (remarkText.includes('準時') || lowerRemark.includes('on time')) return '🔵';
+  if (remarkText.includes('取消') || lowerRemark.includes('cancelled')) return '🔴';
+
+  return '';
 }
 
 /**
