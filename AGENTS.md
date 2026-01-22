@@ -47,6 +47,63 @@ Deployment and triggers
 - GitHub Pages deploys via `.github/workflows/deploy.yml`.
 - Polling automation uses `.github/workflows/flight-cache-to-azure.yml`.
 
+## Workflow 時段分配策略
+
+### 背景
+
+本專案提供**即時班機資訊**，每分鐘都需要執行 API polling 並上傳至 Azure Blob。由於 GitHub Actions 單次執行上限為 **6 小時 (360 分鐘)**，無法一次覆蓋目標時段 (台灣時間 07:00-23:00 共 16 小時)，因此需要拆分成 3 個時段執行。
+
+### 時段設計原則
+
+1. **最大化覆蓋率**：盡可能接近 6 小時上限，減少時段間隔損失
+2. **避免 overlap**：各時段間保留最小必要 buffer (5 分鐘)，避免觸發 `cancel-in-progress`
+3. **即時性優先**：間隔時間越短越好，確保資料連續性
+
+### 當前時段分配 (UTC 時間)
+
+```
+時段 1: UTC 23:00-04:55 (5h55m = 21300 秒)
+  → 台灣時間: 07:00-12:55
+  → Buffer: 5 分鐘
+
+時段 2: UTC 05:00-10:55 (5h55m = 21300 秒)
+  → 台灣時間: 13:00-18:55
+  → Buffer: 5 分鐘
+
+時段 3: UTC 11:00-15:00 (4h = 14400 秒)
+  → 台灣時間: 19:00-23:00
+```
+
+### 覆蓋統計
+
+- **總執行時間**: 15h50m
+- **目標時段**: 16h
+- **間隔損失**: 10 分鐘 (12:55-13:00 + 18:55-19:00)
+- **覆蓋率**: 98.96%
+
+### Concurrency 設定
+
+```yaml
+concurrency:
+  group: flight-cache-${{ github.event_name == 'schedule' && 'auto' || 'manual' }}
+  cancel-in-progress: true
+```
+
+- 所有自動排程使用同一個 group `flight-cache-auto`
+- 啟用 `cancel-in-progress` 確保同時只有一個時段在執行
+- 5 分鐘 buffer 足以應對正常的啟動延遲和網路波動
+
+### 修改時段時的注意事項
+
+如需調整時段分配，請遵循以下步驟：
+
+1. 確認新的時段設定不會 overlap (考慮 3-5 分鐘啟動延遲)
+2. 同步更新 `.github/workflows/flight-cache-to-azure.yml` 中的：
+   - 註解說明 (第 4-8 行)
+   - `duration` 計算邏輯 (第 54-64 行)
+3. 計算總覆蓋率，確保資料連續性符合需求
+4. 提交時說明修改原因和新的時段分配
+
 Operational hygiene
 
 - Document any required environment variables (names and expected values) in README or comments near usage.
