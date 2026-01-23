@@ -2,9 +2,9 @@ name: Flight cache -> Azure Blob
 
 on:
   # GitHub Actions cron uses UTC. Job 執行上限 6 小時 (360 分鐘)
-  # 即時班機資訊每分鐘更新，因 6 小時上限需拆分成 3 個時段 (5 分鐘 buffer)：
-  # 時段 1: 台灣 07:00-12:55 (5h55m) = UTC 23:00 觸發
-  # 時段 2: 台灣 13:00-18:55 (5h55m) = UTC 05:00 觸發
+  # 即時班機資訊每分鐘更新，需最小化間隔 (1 分鐘 buffer)：
+  # 時段 1: 台灣 07:00-12:59 (5h59m) = UTC 23:00 觸發
+  # 時段 2: 台灣 13:00-18:59 (5h59m) = UTC 05:00 觸發
   # 時段 3: 台灣 19:00-23:00 (4h00m) = UTC 11:00 觸發
   schedule:
     - cron: '0 23 * * *'  # 時段 1 啟動
@@ -51,13 +51,13 @@ jobs:
             # 自動排程：根據 UTC 時間判斷時段
             hour=$(date -u +%H)
             if [ "$hour" -eq 23 ]; then
-              # 時段 1: 台灣 07:00-12:55 (5h55m = 21300s)
-              echo "duration=21300" >> $GITHUB_OUTPUT
-              echo "period=1 (07:00-12:55)" >> $GITHUB_OUTPUT
+              # 時段 1: 台灣 07:00-12:59 (5h59m = 21540s)
+              echo "duration=21540" >> $GITHUB_OUTPUT
+              echo "period=1 (07:00-12:59)" >> $GITHUB_OUTPUT
             elif [ "$hour" -eq 5 ]; then
-              # 時段 2: 台灣 13:00-18:55 (5h55m = 21300s)
-              echo "duration=21300" >> $GITHUB_OUTPUT
-              echo "period=2 (13:00-18:55)" >> $GITHUB_OUTPUT
+              # 時段 2: 台灣 13:00-18:59 (5h59m = 21540s)
+              echo "duration=21540" >> $GITHUB_OUTPUT
+              echo "period=2 (13:00-18:59)" >> $GITHUB_OUTPUT
             elif [ "$hour" -eq 11 ]; then
               # 時段 3: 台灣 19:00-23:00 (4h = 14400s)
               echo "duration=14400" >> $GITHUB_OUTPUT
