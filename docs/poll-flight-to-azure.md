@@ -24,10 +24,13 @@ node scripts/poll-flight-to-azure.mjs
 | `RUN_SECONDS` | 執行總秒數 | `3h59m` |
 | `INTERVAL_SECONDS` | 輪詢間隔秒數 | `60` |
 | `TIME_ZONE` | log 檔名時區 | `Asia/Taipei` |
+| `AIRPORT_NAME` | 機場名稱(必要) | `""` |
 | `DRY_RUN` | `1` 時只抓資料不寫入 | `""` |
 | `AZURE_CONTAINER_SAS_URL` | Container SAS（必要，支援 log） | `""` |
 
+
 > 未設定 `AZURE_CONTAINER_SAS_URL` 會導致上傳失敗（除非使用 `DRY_RUN=1`）。
+> 未設定 `AIRPORT_NAME` 會導致上傳檔案生成失敗。
 
 ## 產出
 

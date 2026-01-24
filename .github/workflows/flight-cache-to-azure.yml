@@ -74,6 +74,8 @@ jobs:
           AZURE_CONTAINER_SAS_URL: ${{ secrets.AZURE_CONTAINER_SAS_URL }}
           AZURE_BLOB_SAS_URL: ${{ secrets.AZURE_BLOB_SAS_URL }}
           AZURE_DATA_BLOB_NAME: ${{ secrets.AZURE_DATA_BLOB_NAME }}
+          AIRPORT_NAME: 'penghu'
+          FETCH_URL: 'https://www.mkport.gov.tw/Flight/moreArrival.aspx?1=1&MenuID=5F8C5942FDC5D1C4'
           TIME_ZONE: Asia/Taipei
           RUN_SECONDS: ${{ steps.config.outputs.duration }}
           INTERVAL_SECONDS: '60'

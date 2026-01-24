@@ -2,7 +2,6 @@
 
 const DEFAULT_FETCH_URL =
   'https://www.mkport.gov.tw/Flight/moreArrival.aspx?1=1&MenuID=5F8C5942FDC5D1C4';
-const JSONP_CALLBACK_NAME = '__penghuFlightDataCallback';
 
 /**
  * @param {number} ms
@@ -161,8 +160,15 @@ async function main() {
   const timeZone = process.env.TIME_ZONE || 'Asia/Taipei';
 
   const containerSasUrl = process.env.AZURE_CONTAINER_SAS_URL || '';
-  // TODO: Multi-airport support should derive blob names per airport configuration.
-  const dataBlobName = 'data-penghu.jsonp';
+  const airportName = process.env.AIRPORT_NAME || '';
+
+  if (!airportName) {
+    throw new Error('FATAL: Environment variable "AIRPORT_NAME" is required but not defined.');
+  }
+
+  const jsonpCallBackName = `__${airportName}FlightDataCallback`;
+
+  const dataBlobName = `data-${airportName}.jsonp`;
 
   const hasContainerUpload = Boolean(containerSasUrl);
 
@@ -222,8 +228,7 @@ async function main() {
       };
 
       const json = JSON.stringify(payload);
-      const jsonp = `window.${JSONP_CALLBACK_NAME}(${json});`;
-
+      const jsonp = `window.${jsonpCallBackName}(${json});`;
       if (dryRun) {
         log('INFO', `Fetched ${result.data.length} rows (dry-run; skip upload).`);
       } else {
