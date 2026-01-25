@@ -29,6 +29,53 @@ function pad2(n) {
 }
 
 /**
+ * 取得指定時區的當前小時和分鐘
+ * @param {Date} d
+ * @param {string} timeZone
+ * @returns {{ hour: number, minute: number }}
+ */
+function getHourMinuteInTimeZone(d, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
+  return { hour, minute };
+}
+
+/**
+ * 判斷是否已超過硬性截止時間
+ * 時段 1: 07:00-12:59 → 截止 12:59 (下一時段 13:00 前)
+ * 時段 2: 13:00-18:59 → 截止 18:59 (下一時段 19:00 前)
+ * 時段 3: 19:00-23:00 → 截止 23:00
+ * @param {string} timeZone
+ * @returns {boolean}
+ */
+function isPastHardDeadline(timeZone) {
+  const { hour, minute } = getHourMinuteInTimeZone(new Date(), timeZone);
+  const currentTime = hour * 100 + minute; // e.g., 1259, 1859, 2300
+
+  // 時段 1: 07:00-12:58 允許執行，12:59 時停止
+  if (hour >= 7 && hour < 13) {
+    return currentTime >= 1259;
+  }
+  // 時段 2: 13:00-18:58 允許執行，18:59 時停止
+  if (hour >= 13 && hour < 19) {
+    return currentTime >= 1859;
+  }
+  // 時段 3: 19:00-22:59 允許執行，23:00 時停止
+  if (hour >= 19 && hour < 23) {
+    return currentTime >= 2300;
+  }
+  // 其他時間 (23:00-06:59)：非營運時段，允許執行直到 duration 結束
+  return false;
+}
+
+/**
  * @param {Date} d
  * @param {string} timeZone
  */
@@ -213,6 +260,12 @@ async function main() {
   );
 
   while (Date.now() < endAtMs) {
+    // 硬性時間截止檢查：避免跑到下一時段的啟動時間
+    if (isPastHardDeadline(timeZone)) {
+      log('INFO', `Hard deadline reached. Stopping to avoid overlap with next scheduled period.`);
+      break;
+    }
+
     const iterationStartedAt = Date.now();
     try {
       const result = await fetchFlightDataInternal(fetchUrl);
