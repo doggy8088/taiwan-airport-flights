@@ -30,7 +30,7 @@ node scripts/poll-flight-to-azure.mjs
 
 
 > 未設定 `AZURE_CONTAINER_SAS_URL` 會導致上傳失敗（除非使用 `DRY_RUN=1`）。
-> 未設定 `AIRPORT_NAME` 會導致上傳檔案生成失敗。
+> 未設定 `AIRPORT_NAME` 會導致腳本啟動失敗並拋出錯誤。
 
 ## 產出
 

@@ -166,9 +166,13 @@ async function main() {
     throw new Error('FATAL: Environment variable "AIRPORT_NAME" is required but not defined.');
   }
 
-  const jsonpCallBackName = `__${airportName}FlightDataCallback`;
+  const safeAirportName = airportName
+  .replace(/[\\/:*?"<>|]/g, '')
+  .replace(/\s+/g, '')
+  .trim();
 
-  const dataBlobName = `data-${airportName}.jsonp`;
+  const jsonpCallBackName = `__${safeAirportName}FlightDataCallback`;
+  const dataBlobName = `data-${safeAirportName}.jsonp`;
 
   const hasContainerUpload = Boolean(containerSasUrl);
 
