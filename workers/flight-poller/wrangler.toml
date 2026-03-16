@@ -1,0 +1,11 @@
+name = "taiwan-airport-flight-poller"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Cron Trigger：每分鐘觸發一次
+# 格式：分 時 日 月 星期（與 crontab 相同）
+[triggers]
+crons = ["* * * * *"]
+
+# Secrets（請使用 wrangler secret put 指令設定，勿寫入此檔）
+# AZURE_CONTAINER_SAS_URL - Azure Blob Container 層級 SAS URL
