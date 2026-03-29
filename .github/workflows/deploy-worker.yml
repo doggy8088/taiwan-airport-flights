@@ -99,21 +99,22 @@ jobs:
             URL_LINE=""
           fi
 
-          NOTES="## 部署資訊
-
-**Worker 名稱：** \`${WORKER_NAME}\`
-**Commit：** [\`${SHORT_SHA}\`](${COMMIT_URL})
-**部署時間：** ${DEPLOY_TIME}
-**觸發者：** @${{ github.actor }}
-
-## 部署網址
-
-${URL_LINE}
-📊 **Cloudflare Dashboard：** <${DASHBOARD_URL}>
-
-## Cron Trigger 說明
-
-此 Worker 設定為每分鐘觸發一次（\`* * * * *\`），自動抓取澎湖馬公機場最新航班資訊，並上傳至 Azure Blob Storage。"
+          NOTES=$(printf '%s\n' \
+            '## 部署資訊' \
+            '' \
+            "**Worker 名稱：** \`${WORKER_NAME}\`" \
+            "**Commit：** [\`${SHORT_SHA}\`](${COMMIT_URL})" \
+            "**部署時間：** ${DEPLOY_TIME}" \
+            "**觸發者：** @${{ github.actor }}" \
+            '' \
+            '## 部署網址' \
+            '' \
+            "${URL_LINE}" \
+            "📊 **Cloudflare Dashboard：** <${DASHBOARD_URL}>" \
+            '' \
+            '## Cron Trigger 說明' \
+            '' \
+            '此 Worker 設定為每分鐘觸發一次（`* * * * *`），自動抓取澎湖馬公機場最新航班資訊，並上傳至 Azure Blob Storage。')
 
           gh release create "$TAG" \
             --title "Worker 部署：${TAG}" \
