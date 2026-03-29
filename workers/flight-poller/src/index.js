@@ -113,11 +113,12 @@ function getHourMinuteInTimeZone(d, timeZone) {
 }
 
 /**
- * 判斷目前是否在台灣航班服務時段 (07:00–23:00)
+ * 判斷指定時間（預設 now）是否在台灣航班服務時段 (07:00–23:00)
+ * @param {Date} [date]
  * @returns {boolean}
  */
-function isWithinServiceHours() {
-  const { hour } = getHourMinuteInTimeZone(new Date(), TIME_ZONE);
+function isWithinServiceHours(date = new Date()) {
+  const { hour } = getHourMinuteInTimeZone(date, TIME_ZONE);
   return hour >= 7 && hour < 23;
 }
 
@@ -163,4 +164,15 @@ export default {
 
     ctx.waitUntil(runPollAndUpload(env.AZURE_CONTAINER_SAS_URL));
   }
+};
+
+// Named exports for unit testing
+export {
+  stripHtmlTags,
+  buildBlobUrlFromContainerSas,
+  getHourMinuteInTimeZone,
+  isWithinServiceHours,
+  fetchFlightDataInternal,
+  putBlob,
+  runPollAndUpload
 };
