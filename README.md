@@ -20,7 +20,13 @@ taiwan-airport-flights/
 │   └── airports/
 │       └── penghu/
 │           └── index.html           # 澎湖機場航班頁
+├── workers/                          # Cloudflare Workers
+│   └── flight-poller/
+│       ├── src/
+│       │   └── index.js             # Worker 主程式（每分鐘抓取並上傳）
+│       └── wrangler.toml            # Wrangler 設定（Cron Trigger）
 ├── docs/                             # 多機場文件
+│   ├── cloudflare-workers-setup.md  # Cloudflare Workers 安裝設定 SOP
 │   └── airports/
 │       └── penghu/
 │           ├── data.json            # 航班資料範例
@@ -28,7 +34,7 @@ taiwan-airport-flights/
 │           └── flight-position-data-research.md
 ├── scripts/                          # 自動化腳本
 │   ├── minify-public.cjs            # GitHub Pages 壓縮腳本
-│   └── poll-flight-to-azure.mjs     # 航班輪詢上傳 Azure
+│   └── poll-flight-to-azure.mjs     # 航班輪詢上傳 Azure（GitHub Actions 用）
 ├── .github/workflows/               # GitHub Actions
 │   └── deploy.yml                   # 自動部署到 GitHub Pages
 ├── package.json                      # Node.js 專案設定
@@ -58,28 +64,53 @@ taiwan-airport-flights/
 3. 推送變更到 `gas-penghu-flight-monitor` 分支後，GitHub Actions 會先執行 `npm run pages:build`，再部署 `public/dist`
 4. 部署完成後即可透過 GitHub Pages 網址存取
 
-## GitHub Actions：航班資料輪詢並上傳 Azure Blob
+## 航班資料輪詢並上傳 Azure Blob
 
-本專案提供一個 GitHub Actions workflow：`.github/workflows/flight-cache-to-azure.yml`，用來在指定時段內每 60 秒抓取一次航班資料，並持續覆寫更新 Azure Blob 內的 `data.json`。
+本專案提供兩種輪詢架構，可依需求擇一使用：
 
-- 觸發時間（台北時間）：每日 07:00 / 11:00 / 15:00 / 19:00
-- 每次執行：3 小時 59 分（避免與下一次排程重疊）
+### 方案一：Cloudflare Workers（建議）
+
+利用 **Cloudflare Workers + Cron Trigger** 每分鐘觸發一次 Worker，抓取最新航班資訊後上傳至 Azure Blob Storage。
+
+- 無需長時間佔用 GitHub Actions 分鐘數
+- 每分鐘觸發，無時段切換間隔損失
+- Cloudflare Workers 免費方案每日 10 萬次請求，日常使用（約 960 次/日）遠低於上限
+
+**完整安裝設定 SOP** 請參閱 [docs/cloudflare-workers-setup.md](docs/cloudflare-workers-setup.md)。
+
+Worker 程式碼位於 `workers/flight-poller/`：
+
+```text
+workers/
+└── flight-poller/
+    ├── src/
+    │   └── index.js       # Worker 主程式（每次觸發執行一次抓取與上傳）
+    └── wrangler.toml      # Wrangler 設定（含 Cron Trigger）
+```
+
+需要設定的 Cloudflare Secret：
+
+- `AZURE_CONTAINER_SAS_URL`：Azure Blob Container 層級 SAS URL
+
+---
+
+### 方案二：GitHub Actions（長時間執行）
+
+本專案同時保留 `.github/workflows/flight-cache-to-azure.yml`，在指定時段內每 60 秒抓取一次航班資料，並持續覆寫更新 Azure Blob 內的 `data.json`。
+
+- 觸發時間（台北時間）：每日 07:00 / 13:00 / 19:00
+- 每次執行：最長 5 小時 59 分（三時段覆蓋 07:00–23:00）
 - 時區注意：GitHub Actions `schedule.cron` 使用 UTC，workflow 內已換算為 UTC+8
 
-### 需要設定的 Secrets
+需要設定的 GitHub Secrets（`Settings` → `Secrets and variables` → `Actions`）：
 
-到 GitHub repo：`Settings` → `Secrets and variables` → `Actions` → `New repository secret`
+- `AZURE_CONTAINER_SAS_URL`：Container level 的 SAS URL，例如：`https://<account>.blob.core.windows.net/<container>?<sas>`
 
-- `AZURE_CONTAINER_SAS_URL`（建議）：Container level 的 SAS URL，例如：`https://<account>.blob.core.windows.net/<container>?<sas>`
-  - 可同時上傳 `data.json` 與錯誤 log（需要對 blob 物件具備寫入/建立權限）
-
-### 錯誤 Log（以日期分類）
+#### 錯誤 Log（以日期分類）
 
 當每次輪詢發生錯誤時，workflow 不會中止，會把錯誤寫入 log 並（若有 `AZURE_CONTAINER_SAS_URL`）上傳到：
 
 - `logs/YYYY-MM-DD/run-<timestamp>.log`
-
-### 使用說明
 
 腳本使用方式請參考 [docs/poll-flight-to-azure.md](docs/poll-flight-to-azure.md)。
 
