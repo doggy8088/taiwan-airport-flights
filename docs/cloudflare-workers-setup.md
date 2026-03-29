@@ -12,6 +12,8 @@
 4. [登入 Cloudflare](#登入-cloudflare)
 5. [設定 Secrets](#設定-secrets)
 6. [部署 Worker](#部署-worker)
+   - [自動部署（GitHub Actions，建議）](#自動部署github-actions建議)
+   - [手動部署（Wrangler CLI）](#手動部署wrangler-cli)
 7. [驗證 Cron Trigger](#驗證-cron-trigger)
 8. [本機測試](#本機測試)
 9. [日常維護](#日常維護)
@@ -84,7 +86,7 @@ wrangler login
 export CLOUDFLARE_API_TOKEN="<your-api-token>"
 ```
 
-> API Token 需具備 **Workers Scripts:Edit** 和 **Workers Routes:Edit** 權限。
+> API Token 需具備 **Workers Scripts:Edit**、**Workers Routes:Edit** 及 **Account Settings:Read** 權限。
 > 建立方式：Cloudflare Dashboard → My Profile → API Tokens → Create Token。
 
 ---
@@ -124,6 +126,39 @@ wrangler secret list
 
 ## 部署 Worker
 
+### 自動部署（GitHub Actions，建議）
+
+本專案提供 `.github/workflows/deploy-worker.yml`，當 `workers/flight-poller/` 目錄有任何變更推送至 `main` 分支時，會自動：
+
+1. 使用 `cloudflare/wrangler-action` 部署 Worker
+2. 建立 GitHub Release，Release Notes 包含部署網址
+
+**所需 GitHub Secrets（一次性設定）：**
+
+到 GitHub Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**：
+
+| Secret 名稱 | 說明 |
+|---|---|
+| `CF_ACCOUNT_ID` | Cloudflare 帳號 ID（Dashboard 右側欄） |
+| `CF_ACCOUNT_KEY` | Cloudflare API Token（需具備 Workers Scripts:Edit 及 Account Settings:Read 權限） |
+| `AZURE_CONTAINER_SAS_URL` | Azure Blob Container 層級 SAS URL |
+
+**設定 Cloudflare API Token：**
+
+1. 登入 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. 右上角頭像 → **My Profile** → **API Tokens**
+3. **Create Token** → 選擇 **Edit Cloudflare Workers** 範本
+4. 在權限清單中確認包含以下兩項：
+   - `Workers Scripts:Edit`（部署 Worker 腳本）
+   - `Account Settings:Read`（讀取 workers.dev 子網域以產生部署網址）
+5. 複製產生的 Token，填入 GitHub Secret `CF_ACCOUNT_KEY`
+
+設定完成後，只需推送變更至 `main`，Worker 即自動部署並產生 Release。也可至 GitHub Actions 頁面手動觸發 **workflow_dispatch**。
+
+---
+
+### 手動部署（Wrangler CLI）
+
 在 `workers/flight-poller/` 目錄下執行：
 
 ```bash
@@ -140,8 +175,8 @@ Worker Startup Time: x ms
 Your worker has access to the following bindings:
 - Secrets:
   - AZURE_CONTAINER_SAS_URL
-Uploaded taiwan-airport-flight-poller (x.xx sec)
-Deployed taiwan-airport-flight-poller triggers (x.xx sec)
+Uploaded taiwan-airport-flights (x.xx sec)
+Deployed taiwan-airport-flights triggers (x.xx sec)
   schedule: * * * * *
 Current Version ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
@@ -154,12 +189,12 @@ Current Version ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 1. 前往 [Cloudflare Dashboard](https://dash.cloudflare.com/)
 2. 選擇帳號 → **Workers & Pages**
-3. 點選 `taiwan-airport-flight-poller`
+3. 點選 `taiwan-airport-flights`
 4. 點選 **Triggers** 分頁，確認 **Cron Triggers** 顯示 `* * * * *`
 
 ### 方法二：手動觸發測試（Dashboard）
 
-1. Dashboard → Workers & Pages → `taiwan-airport-flight-poller`
+1. Dashboard → Workers & Pages → `taiwan-airport-flights`
 2. 點選 **Triggers** → **Test**
 3. 在 **Scheduled Event** 欄位輸入測試時間（可使用當前時間）
 4. 按下 **Test Trigger**，觀察右側 **Output** 是否顯示成功日誌
@@ -238,7 +273,7 @@ wrangler secret put AZURE_CONTAINER_SAS_URL
 
 ### 暫停 Cron Trigger
 
-1. Cloudflare Dashboard → Workers & Pages → `taiwan-airport-flight-poller`
+1. Cloudflare Dashboard → Workers & Pages → `taiwan-airport-flights`
 2. **Triggers** 分頁 → **Cron Triggers** → 點選刪除圖示
 
 或修改 `wrangler.toml`，將 `crons` 設為空陣列後重新部署：

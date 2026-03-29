@@ -1,0 +1,98 @@
+name: 部署 Worker 至 Cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workers/flight-poller/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: 部署 Cloudflare Worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 部署至 Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_ACCOUNT_KEY }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: workers/flight-poller
+
+      - name: 取得部署資訊
+        id: info
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_ACCOUNT_KEY }}
+        run: |
+          # 從 wrangler.toml 動態讀取 Worker 名稱，避免硬編碼與設定檔不同步
+          WORKER_NAME=$(grep '^name' workers/flight-poller/wrangler.toml \
+            | head -1 | cut -d'=' -f2 | tr -d ' "')
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          TAG="worker-$(date -u +%Y%m%d%H%M%S)"
+          echo "worker_name=$WORKER_NAME" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          # 透過 Cloudflare API 取得帳號的 workers.dev 子網域
+          API_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/subdomain" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}")
+          HTTP_CODE=$(echo "$API_RESPONSE" | tail -1)
+          BODY=$(echo "$API_RESPONSE" | head -n -1)
+
+          if [ "$HTTP_CODE" = "200" ] && echo "$BODY" | jq -e '.success == true' > /dev/null 2>&1; then
+            SUBDOMAIN=$(echo "$BODY" | jq -r '.result.subdomain // ""')
+          else
+            echo "::warning::Cloudflare 子網域 API 回應異常（HTTP ${HTTP_CODE}），將略過 workers.dev URL"
+            SUBDOMAIN=""
+          fi
+          echo "subdomain=$SUBDOMAIN" >> $GITHUB_OUTPUT
+
+      - name: 建立 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKER_NAME: ${{ steps.info.outputs.worker_name }}
+          SHORT_SHA: ${{ steps.info.outputs.short_sha }}
+          TAG: ${{ steps.info.outputs.tag }}
+          SUBDOMAIN: ${{ steps.info.outputs.subdomain }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          DEPLOY_TIME="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          DASHBOARD_URL="https://dash.cloudflare.com/${CF_ACCOUNT_ID}/workers/services/view/${WORKER_NAME}"
+
+          if [ -n "$SUBDOMAIN" ]; then
+            WORKER_URL="https://${WORKER_NAME}.${SUBDOMAIN}.workers.dev"
+            URL_LINE="🌐 **Workers.dev URL：** <${WORKER_URL}>"
+          else
+            URL_LINE=""
+          fi
+
+          NOTES="## 部署資訊
+
+**Worker 名稱：** \`${WORKER_NAME}\`
+**Commit：** [\`${SHORT_SHA}\`](${COMMIT_URL})
+**部署時間：** ${DEPLOY_TIME}
+**觸發者：** @${{ github.actor }}
+
+## 部署網址
+
+${URL_LINE}
+📊 **Cloudflare Dashboard：** <${DASHBOARD_URL}>
+
+## Cron Trigger 說明
+
+此 Worker 設定為每分鐘觸發一次（\`* * * * *\`），自動抓取澎湖馬公機場最新航班資訊，並上傳至 Azure Blob Storage。"
+
+          gh release create "$TAG" \
+            --title "Worker 部署：${TAG}" \
+            --notes "$NOTES" \
+            || { echo "::error::建立 Release 失敗，請確認 tag 是否重複或 contents: write 權限是否已設定"; exit 1; }

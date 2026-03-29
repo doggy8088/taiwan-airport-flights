@@ -1,4 +1,4 @@
-name = "taiwan-airport-flight-poller"
+name = "taiwan-airport-flights"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
 
