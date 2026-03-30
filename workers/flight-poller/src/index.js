@@ -107,7 +107,7 @@ function getHourMinuteInTimeZone(d, timeZone) {
     hour12: false
   }).formatToParts(d);
 
-  const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10) % 24;
   const minute = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
   return { hour, minute };
 }
