@@ -254,8 +254,11 @@ wrangler tail
 每分鐘觸發時，終端機會顯示類似：
 
 ```
-[2024-09-23 10:00:01] INFO Uploaded data-penghu.jsonp (12 rows).
+[2026-04-26T01:20:00.000Z] INFO Starting fetch and upload. {"cron":"* * * * *","scheduledTime":"2026-04-25T17:20:00.000Z","sourceUrl":"https://www.mkport.gov.tw/Flight/moreArrival.aspx?1=1&MenuID=5F8C5942FDC5D1C4","blobUrl":"https://<account>.blob.core.windows.net/flight-data/data-penghu.jsonp","sasPermissions":"rcw","sasExpiresAt":"2026-06-30T23:59:59.000Z"}
+[2026-04-26T01:20:02.000Z] INFO Uploaded blob successfully. {"rows":57,"azureStatus":201,"azureRequestId":"...","azureLastModified":"Sat, 26 Apr 2026 01:20:02 GMT"}
 ```
+
+若 `AZURE_CONTAINER_SAS_URL` 已過期或缺少寫入權限，Worker 會先記錄警告並直接讓此次 Cron 顯示失敗，方便在 Cloudflare Dashboard 與 `wrangler tail` 追查。
 
 ### 更新程式碼後重新部署
 
@@ -320,6 +323,7 @@ wrangler delete
    ```bash
    wrangler secret put AZURE_CONTAINER_SAS_URL
    ```
+3. 使用 `wrangler tail` 檢查 log 中的 `sasPermissions`、`sasExpiresAt` 與 `azureRequestId`
 
 ---
 

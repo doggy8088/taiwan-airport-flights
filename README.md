@@ -92,6 +92,15 @@ workers/
 
 - `AZURE_CONTAINER_SAS_URL`：Azure Blob Container 層級 SAS URL
 
+Worker 會在 Cloudflare Logs 記錄：
+
+- Cron 時間與是否落在服務時段
+- 來源網址與目標 blob URL（已移除 SAS query）
+- SAS 權限（`sp`）與到期時間（`se`）
+- Azure PUT 成功狀態、request ID，或失敗錯誤摘要
+
+若 Azure 寫入失敗，排程會直接回報失敗，不再只有 Cron 事件顯示成功。
+
 ---
 
 ### 方案二：GitHub Actions（長時間執行）
@@ -113,4 +122,3 @@ workers/
 - `logs/YYYY-MM-DD/run-<timestamp>.log`
 
 腳本使用方式請參考 [docs/poll-flight-to-azure.md](docs/poll-flight-to-azure.md)。
-

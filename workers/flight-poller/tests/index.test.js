@@ -1,7 +1,12 @@
 // @ts-check
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
+import worker, {
   stripHtmlTags,
+  truncateText,
+  toErrorDetails,
+  sanitizeUrlForLog,
+  getSasDiagnostics,
+  assertSasIsWritable,
   buildBlobUrlFromContainerSas,
   getHourMinuteInTimeZone,
   isWithinServiceHours,
@@ -48,6 +53,94 @@ describe('stripHtmlTags', () => {
 
   it('should return plain text unchanged', () => {
     expect(stripHtmlTags('plain text')).toBe('plain text');
+  });
+});
+
+describe('truncateText', () => {
+  it('should return the original string when it is short enough', () => {
+    expect(truncateText('hello', 10)).toBe('hello');
+  });
+
+  it('should truncate long strings with ellipsis', () => {
+    expect(truncateText('abcdefghij', 5)).toBe('abcde...');
+  });
+});
+
+describe('toErrorDetails', () => {
+  it('should serialize Error objects', () => {
+    const details = toErrorDetails(new Error('boom'));
+    expect(details.errorName).toBe('Error');
+    expect(details.errorMessage).toBe('boom');
+    expect(details.errorStack).toContain('boom');
+  });
+
+  it('should serialize non-Error values', () => {
+    expect(toErrorDetails('boom')).toEqual({ errorMessage: 'boom' });
+  });
+});
+
+describe('sanitizeUrlForLog', () => {
+  it('should strip query string and hash', () => {
+    expect(
+      sanitizeUrlForLog('https://example.blob.core.windows.net/c/blob.jsonp?sig=abc#fragment')
+    ).toBe('https://example.blob.core.windows.net/c/blob.jsonp');
+  });
+});
+
+describe('getSasDiagnostics', () => {
+  it('should return sanitized blob url and SAS metadata', () => {
+    const sas = getSasDiagnostics(
+      'https://myaccount.blob.core.windows.net/mycontainer?sp=rcw&se=2030-01-01T00:00:00Z&sig=abc',
+      'data-penghu.jsonp'
+    );
+
+    expect(sas.blobUrl).toBe('https://myaccount.blob.core.windows.net/mycontainer/data-penghu.jsonp');
+    expect(sas.permissions).toBe('rcw');
+    expect(sas.expiresAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(sas.isExpired).toBe(false);
+    expect(sas.warnings).toEqual([]);
+  });
+
+  it('should flag expired or insufficient SAS permissions', () => {
+    const sas = getSasDiagnostics(
+      'https://myaccount.blob.core.windows.net/mycontainer?sp=r&se=2020-01-01T00:00:00Z&sig=abc',
+      'data-penghu.jsonp'
+    );
+
+    expect(sas.isExpired).toBe(true);
+    expect(sas.warnings).toContain('expired-sas');
+    expect(sas.warnings).toContain('missing-write-permission');
+    expect(sas.warnings).toContain('missing-create-permission');
+  });
+});
+
+describe('assertSasIsWritable', () => {
+  it('should throw for expired SAS URLs', () => {
+    expect(() =>
+      assertSasIsWritable({
+        permissions: 'rcw',
+        expiresAt: '2020-01-01T00:00:00.000Z',
+        isExpired: true,
+        warnings: ['expired-sas'],
+        accountHost: 'example.blob.core.windows.net',
+        containerPath: '/container',
+        blobUrl: 'https://example.blob.core.windows.net/container/data-penghu.jsonp'
+      })
+    ).toThrow('Azure container SAS URL expired at 2020-01-01T00:00:00.000Z');
+  });
+
+  it('should throw when write permission is missing', () => {
+    expect(() =>
+      assertSasIsWritable({
+        permissions: 'rc',
+        expiresAt: '2030-01-01T00:00:00.000Z',
+        isExpired: false,
+        warnings: ['missing-write-permission'],
+        accountHost: 'example.blob.core.windows.net',
+        containerPath: '/container',
+        blobUrl: 'https://example.blob.core.windows.net/container/data-penghu.jsonp'
+      })
+    ).toThrow('missing write permission');
   });
 });
 
@@ -347,6 +440,7 @@ describe('runPollAndUpload', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -358,7 +452,16 @@ describe('runPollAndUpload', () => {
   it('should fetch flight data, build JSONP payload, and upload to Azure', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(new Response(FLIGHT_HTML, { status: 200 })) // flight page
-      .mockResolvedValueOnce(new Response('', { status: 201 }));          // azure PUT
+      .mockResolvedValueOnce(
+        new Response('', {
+          status: 201,
+          headers: {
+            etag: '"etag-123"',
+            'last-modified': 'Sat, 26 Apr 2026 00:00:00 GMT',
+            'x-ms-request-id': 'req-123'
+          }
+        })
+      ); // azure PUT
 
     await runPollAndUpload(SAS_URL);
 
@@ -373,29 +476,86 @@ describe('runPollAndUpload', () => {
     expect(body).toContain('__penghuFlightDataCallback');
     expect(body).toContain('FE701');
     expect(console.log).toHaveBeenCalledWith(
-      expect.stringContaining('Uploaded data-penghu.jsonp (1 rows).')
+      expect.stringContaining('Uploaded blob successfully.')
     );
   });
 
-  it('should log an error and not throw when fetch fails', async () => {
+  it('should reject when fetch fails so cron can surface the failure', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Network error'));
 
-    await expect(runPollAndUpload(SAS_URL)).resolves.toBeUndefined();
+    await expect(runPollAndUpload(SAS_URL)).rejects.toThrow('Network error');
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('ERROR Poll and upload failed:'),
-      expect.any(TypeError)
+      expect.stringContaining('Poll and upload failed.')
     );
   });
 
-  it('should log an error and not throw when Azure PUT fails', async () => {
+  it('should reject when Azure PUT fails', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(new Response(FLIGHT_HTML, { status: 200 }))
       .mockResolvedValueOnce(new Response('', { status: 403, statusText: 'Forbidden' }));
 
-    await expect(runPollAndUpload(SAS_URL)).resolves.toBeUndefined();
+    await expect(runPollAndUpload(SAS_URL)).rejects.toThrow('Azure PUT failed: 403 Forbidden');
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('ERROR Poll and upload failed:'),
-      expect.any(Error)
+      expect.stringContaining('Poll and upload failed.')
     );
+  });
+
+  it('should fail fast when SAS has already expired', async () => {
+    await expect(
+      runPollAndUpload(
+        'https://myaccount.blob.core.windows.net/container?sp=rcw&se=2020-01-01T00:00:00Z&sig=abc'
+      )
+    ).rejects.toThrow('Azure container SAS URL expired at 2020-01-01T00:00:00.000Z');
+
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Azure SAS configuration requires attention.')
+    );
+  });
+});
+
+describe('scheduled handler', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('should skip outside service hours using the scheduled event timestamp', async () => {
+    await worker.scheduled(
+      /** @type {ScheduledEvent} */ ({
+        cron: '* * * * *',
+        scheduledTime: new Date('2024-06-02T15:00:00Z').getTime()
+      }),
+      /** @type {{ AZURE_CONTAINER_SAS_URL: string }} */ ({
+        AZURE_CONTAINER_SAS_URL:
+          'https://myaccount.blob.core.windows.net/container?sp=rcw&se=2030-01-01T00:00:00Z&sig=abc'
+      }),
+      /** @type {ExecutionContext} */ ({})
+    );
+
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Outside service hours (07:00-23:00 Taipei time). Skipping.')
+    );
+  });
+
+  it('should reject when the secret is missing', async () => {
+    await expect(
+      worker.scheduled(
+        /** @type {ScheduledEvent} */ ({
+          cron: '* * * * *',
+          scheduledTime: new Date('2024-06-01T23:00:00Z').getTime()
+        }),
+        /** @type {{ AZURE_CONTAINER_SAS_URL: string }} */ ({ AZURE_CONTAINER_SAS_URL: '' }),
+        /** @type {ExecutionContext} */ ({})
+      )
+    ).rejects.toThrow('Missing AZURE_CONTAINER_SAS_URL secret.');
   });
 });

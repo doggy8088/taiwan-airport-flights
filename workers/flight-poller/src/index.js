@@ -20,6 +20,111 @@ function stripHtmlTags(input) {
 }
 
 /**
+ * @param {string} input
+ * @param {number} maxLength
+ */
+function truncateText(input, maxLength = 400) {
+  if (input.length <= maxLength) return input;
+  return `${input.slice(0, maxLength)}...`;
+}
+
+/**
+ * @param {unknown} error
+ */
+function toErrorDetails(error) {
+  if (error instanceof Error) {
+    return {
+      errorName: error.name,
+      errorMessage: error.message,
+      errorStack: error.stack ? truncateText(error.stack, 2000) : undefined
+    };
+  }
+
+  return {
+    errorMessage: String(error)
+  };
+}
+
+/**
+ * @param {'INFO'|'WARN'|'ERROR'} level
+ * @param {string} message
+ * @param {Record<string, unknown>=} fields
+ */
+function logEvent(level, message, fields = {}) {
+  const payload = Object.fromEntries(
+    Object.entries(fields).filter(([, value]) => value !== undefined && value !== '')
+  );
+  const suffix = Object.keys(payload).length > 0 ? ` ${JSON.stringify(payload)}` : '';
+  const line = `[${new Date().toISOString()}] ${level} ${message}${suffix}`;
+
+  if (level === 'ERROR') {
+    console.error(line);
+  } else if (level === 'WARN') {
+    console.warn(line);
+  } else {
+    console.log(line);
+  }
+}
+
+/**
+ * @param {string} urlString
+ */
+function sanitizeUrlForLog(urlString) {
+  const url = new URL(urlString);
+  url.search = '';
+  url.hash = '';
+  return url.toString();
+}
+
+/**
+ * @param {string} containerSasUrl
+ * @param {string} blobName
+ */
+function getSasDiagnostics(containerSasUrl, blobName) {
+  const blobUrl = buildBlobUrlFromContainerSas(containerSasUrl, blobName);
+  const url = new URL(containerSasUrl);
+  const permissions = url.searchParams.get('sp') ?? '';
+  const expiresAtRaw = url.searchParams.get('se') ?? '';
+  const expiresAtMs = expiresAtRaw ? Date.parse(expiresAtRaw) : Number.NaN;
+  const expiresAt =
+    expiresAtRaw && Number.isFinite(expiresAtMs) ? new Date(expiresAtMs).toISOString() : expiresAtRaw;
+  const isExpired = Number.isFinite(expiresAtMs) ? expiresAtMs <= Date.now() : false;
+  /** @type {string[]} */
+  const warnings = [];
+
+  if (permissions && !permissions.includes('w')) warnings.push('missing-write-permission');
+  if (permissions && !permissions.includes('c')) warnings.push('missing-create-permission');
+  if (isExpired) warnings.push('expired-sas');
+
+  return {
+    accountHost: url.host,
+    containerPath: url.pathname.replace(/\/+$/, ''),
+    blobUrl: sanitizeUrlForLog(blobUrl),
+    permissions,
+    expiresAt,
+    isExpired,
+    warnings
+  };
+}
+
+/**
+ * @param {ReturnType<typeof getSasDiagnostics>} sas
+ */
+function assertSasIsWritable(sas) {
+  if (sas.isExpired) {
+    throw new Error(
+      `Azure container SAS URL expired at ${sas.expiresAt}. Update AZURE_CONTAINER_SAS_URL.`
+    );
+  }
+
+  if (sas.permissions && !sas.permissions.includes('w')) {
+    throw new Error(
+      `Azure container SAS URL is missing write permission (sp=${sas.permissions}). Update AZURE_CONTAINER_SAS_URL.`
+    );
+  }
+}
+
+/**
  * Port of `scripts/poll-flight-to-azure.mjs` -> `fetchFlightDataInternal`.
  * @param {string} url
  */
@@ -52,7 +157,17 @@ async function fetchFlightDataInternal(url) {
     results.push({ Air, FlightNo, Origin, Aircraft, STs, ATs, STe, ATe, Remark });
   }
 
-  return { status: 'success', data: results };
+  return {
+    status: 'success',
+    data: results,
+    meta: {
+      sourceUrl: res.url || url,
+      httpStatus: res.status,
+      htmlLength: html.length,
+      matchedRowCount: rows.length,
+      parsedRowCount: results.length
+    }
+  };
 }
 
 /**
@@ -89,9 +204,21 @@ async function putBlob(url, body, contentType) {
   });
 
   if (!res.ok) {
+    const requestId = res.headers.get('x-ms-request-id') ?? '';
     const text = await res.text().catch(() => '');
-    throw new Error(`Azure PUT failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`);
+    const detail = text ? ` - ${truncateText(text, 600)}` : '';
+    const requestIdText = requestId ? ` (requestId=${requestId})` : '';
+    throw new Error(`Azure PUT failed: ${res.status} ${res.statusText}${requestIdText}${detail}`);
   }
+
+  return {
+    status: res.status,
+    statusText: res.statusText,
+    contentLength: bytes.byteLength,
+    etag: res.headers.get('etag') ?? '',
+    lastModified: res.headers.get('last-modified') ?? '',
+    requestId: res.headers.get('x-ms-request-id') ?? ''
+  };
 }
 
 /**
@@ -125,50 +252,132 @@ function isWithinServiceHours(date = new Date()) {
 /**
  * 執行一次航班資料抓取並上傳至 Azure Blob
  * @param {string} containerSasUrl
+ * @param {Record<string, unknown>=} context
  */
-async function runPollAndUpload(containerSasUrl) {
-  const startedAt = new Date().toISOString();
+async function runPollAndUpload(containerSasUrl, context = {}) {
+  let sas;
+  try {
+    sas = getSasDiagnostics(containerSasUrl, DATA_BLOB_NAME);
+  } catch (error) {
+    logEvent('ERROR', 'Invalid Azure container SAS URL.', {
+      ...context,
+      ...toErrorDetails(error)
+    });
+    throw error;
+  }
+
+  logEvent('INFO', 'Starting fetch and upload.', {
+    ...context,
+    sourceUrl: DEFAULT_FETCH_URL,
+    blobUrl: sas.blobUrl,
+    sasPermissions: sas.permissions,
+    sasExpiresAt: sas.expiresAt
+  });
+
+  if (sas.warnings.length > 0) {
+    logEvent('WARN', 'Azure SAS configuration requires attention.', {
+      ...context,
+      blobUrl: sas.blobUrl,
+      sasWarnings: sas.warnings,
+      sasPermissions: sas.permissions,
+      sasExpiresAt: sas.expiresAt
+    });
+  }
+
+  assertSasIsWritable(sas);
+
   try {
     const result = await fetchFlightDataInternal(DEFAULT_FETCH_URL);
+
+    if (result.data.length === 0) {
+      logEvent('WARN', 'Source page returned zero parsed flight rows.', {
+        ...context,
+        sourceUrl: result.meta.sourceUrl,
+        matchedRowCount: result.meta.matchedRowCount,
+        htmlLength: result.meta.htmlLength
+      });
+    }
+
     const payload = {
       timestamp: new Date().toISOString(),
       data: result
     };
 
     const jsonp = `window.${JSONP_CALLBACK_NAME}(${JSON.stringify(payload)});`;
-    const blobUrl = buildBlobUrlFromContainerSas(containerSasUrl, DATA_BLOB_NAME);
-    await putBlob(blobUrl, jsonp, 'application/javascript; charset=utf-8');
-    console.log(`[${startedAt}] INFO Uploaded ${DATA_BLOB_NAME} (${result.data.length} rows).`);
-  } catch (e) {
-    console.error(`[${startedAt}] ERROR Poll and upload failed:`, e);
+    const upload = await putBlob(
+      buildBlobUrlFromContainerSas(containerSasUrl, DATA_BLOB_NAME),
+      jsonp,
+      'application/javascript; charset=utf-8'
+    );
+
+    logEvent('INFO', 'Uploaded blob successfully.', {
+      ...context,
+      blobUrl: sas.blobUrl,
+      rows: result.data.length,
+      sourceUrl: result.meta.sourceUrl,
+      sourceStatus: result.meta.httpStatus,
+      matchedRowCount: result.meta.matchedRowCount,
+      contentLength: upload.contentLength,
+      azureStatus: upload.status,
+      azureRequestId: upload.requestId,
+      azureEtag: upload.etag,
+      azureLastModified: upload.lastModified
+    });
+
+    return {
+      rows: result.data.length,
+      blobUrl: sas.blobUrl,
+      source: result.meta,
+      upload
+    };
+  } catch (error) {
+    logEvent('ERROR', 'Poll and upload failed.', {
+      ...context,
+      blobUrl: sas.blobUrl,
+      ...toErrorDetails(error)
+    });
+    throw error;
   }
 }
 
 export default {
   /**
    * Cron Trigger 入口點：每分鐘觸發一次
-   * @param {ScheduledEvent} _event
+   * @param {ScheduledEvent} event
    * @param {{ AZURE_CONTAINER_SAS_URL: string }} env
-   * @param {ExecutionContext} ctx
+   * @param {ExecutionContext} _ctx
    */
-  async scheduled(_event, env, ctx) {
-    if (!isWithinServiceHours()) {
-      console.log('Outside service hours (07:00-23:00 Taipei time). Skipping.');
+  async scheduled(event, env, _ctx) {
+    const scheduledTime = new Date(event.scheduledTime ?? Date.now());
+    const context = {
+      cron: event.cron ?? '',
+      scheduledTime: scheduledTime.toISOString()
+    };
+
+    if (!isWithinServiceHours(scheduledTime)) {
+      logEvent('INFO', 'Outside service hours (07:00-23:00 Taipei time). Skipping.', context);
       return;
     }
 
     if (!env.AZURE_CONTAINER_SAS_URL) {
-      console.error('Missing AZURE_CONTAINER_SAS_URL secret. Aborting.');
-      return;
+      const error = new Error('Missing AZURE_CONTAINER_SAS_URL secret.');
+      logEvent('ERROR', error.message, context);
+      throw error;
     }
 
-    ctx.waitUntil(runPollAndUpload(env.AZURE_CONTAINER_SAS_URL));
+    await runPollAndUpload(env.AZURE_CONTAINER_SAS_URL, context);
   }
 };
 
 // Named exports for unit testing
 export {
   stripHtmlTags,
+  truncateText,
+  toErrorDetails,
+  logEvent,
+  sanitizeUrlForLog,
+  getSasDiagnostics,
+  assertSasIsWritable,
   buildBlobUrlFromContainerSas,
   getHourMinuteInTimeZone,
   isWithinServiceHours,
