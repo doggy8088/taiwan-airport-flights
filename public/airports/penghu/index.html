@@ -703,7 +703,10 @@ function setStatusLastUpdated(timestamp) {
   if (!statusEl) return;
 
   const nextTimestamp = new Date(timestamp);
-  if (Number.isNaN(nextTimestamp.getTime())) return;
+  if (Number.isNaN(nextTimestamp.getTime())) {
+    console.warn('[status] 無效的最後更新時間', timestamp);
+    return;
+  }
 
   let labelEl = statusEl.querySelector('.status-last-updated-label');
   let timeEl = statusEl.querySelector('.status-last-updated-time');
@@ -775,7 +778,12 @@ function toggleStatusLastUpdatedDisplay() {
     return;
   }
 
-  showStatusLastUpdatedDate();
+  if (statusDisplayMode === 'time') {
+    showStatusLastUpdatedDate();
+    return;
+  }
+
+  showStatusLastUpdatedTime();
 }
 
 /**
