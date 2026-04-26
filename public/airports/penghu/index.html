@@ -725,9 +725,9 @@ function setStatusLastUpdated(timestamp) {
     statusEl.appendChild(timeEl);
     statusEl.style.cursor = 'pointer';
     statusEl.title = '點擊可切換更新時間與日期';
-    statusEl.dataset.lastUpdatedBound = statusEl.dataset.lastUpdatedBound || 'false';
   }
 
+  statusEl.dataset.lastUpdatedBound = statusEl.dataset.lastUpdatedBound || 'false';
   if (statusEl.dataset.lastUpdatedBound !== 'true') {
     statusEl.addEventListener('click', toggleStatusLastUpdatedDisplay);
     statusEl.dataset.lastUpdatedBound = 'true';
@@ -783,13 +783,7 @@ function toggleStatusLastUpdatedDisplay() {
     return;
   }
 
-  if (statusDisplayMode === 'time') {
-    showStatusLastUpdatedDate();
-    return;
-  }
-
-  console.warn('[status] 未知的顯示模式，改回時間顯示', statusDisplayMode);
-  showStatusLastUpdatedTime();
+  showStatusLastUpdatedDate();
 }
 
 /**
