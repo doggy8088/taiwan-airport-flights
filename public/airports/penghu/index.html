@@ -543,6 +543,7 @@ let originFilter = ''; // 目前來源地篩選
 let lastUpdatedTimestamp = null;
 let statusDisplayMode = 'time';
 let statusResetTimer = null;
+let statusClickBound = false;
 const isMobile = window.matchMedia('(max-width: 900px)').matches;
 const SEARCH_STORAGE_KEY = 'flight_search_term'; // localStorage key
 const ORIGIN_STORAGE_KEY = 'flight_origin_filter'; // localStorage key for origin filter
@@ -702,8 +703,8 @@ function setStatusLastUpdated(timestamp) {
   const statusEl = document.getElementById('status');
   if (!statusEl) return;
 
-  const nextTimestamp = new Date(timestamp);
-  if (Number.isNaN(nextTimestamp.getTime())) {
+  const parsedTimestamp = new Date(timestamp);
+  if (Number.isNaN(parsedTimestamp.getTime())) {
     console.warn('[status] 無效的最後更新時間', timestamp);
     return;
   }
@@ -727,13 +728,12 @@ function setStatusLastUpdated(timestamp) {
     statusEl.title = '點擊可切換更新時間與日期';
   }
 
-  statusEl.dataset.lastUpdatedBound = statusEl.dataset.lastUpdatedBound || 'false';
-  if (statusEl.dataset.lastUpdatedBound !== 'true') {
+  if (!statusClickBound) {
     statusEl.addEventListener('click', toggleStatusLastUpdatedDisplay);
-    statusEl.dataset.lastUpdatedBound = 'true';
+    statusClickBound = true;
   }
 
-  lastUpdatedTimestamp = nextTimestamp;
+  lastUpdatedTimestamp = parsedTimestamp;
   renderStatusLastUpdated();
 }
 
