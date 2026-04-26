@@ -748,15 +748,28 @@ function renderStatusLastUpdated() {
 
   if (statusDisplayMode === 'date') {
     labelEl.textContent = '資料日期：';
-    const year = lastUpdatedTimestamp.getFullYear();
-    const month = String(lastUpdatedTimestamp.getMonth() + 1).padStart(2, '0');
-    const date = String(lastUpdatedTimestamp.getDate()).padStart(2, '0');
-    timeEl.textContent = `${year}/${month}/${date}`;
+    timeEl.textContent = formatStatusDate(lastUpdatedTimestamp);
     return;
   }
 
   labelEl.textContent = '最後更新：';
-  timeEl.textContent = lastUpdatedTimestamp.toLocaleTimeString('zh-TW');
+  timeEl.textContent = formatStatusTime(lastUpdatedTimestamp);
+}
+
+function formatStatusDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
+}
+
+function formatStatusTime(date) {
+  return date.toLocaleTimeString('zh-TW', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 }
 
 function clearStatusResetTimer() {
