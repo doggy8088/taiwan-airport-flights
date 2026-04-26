@@ -543,7 +543,6 @@ let originFilter = ''; // 目前來源地篩選
 let lastUpdatedTimestamp = null;
 let statusDisplayMode = 'time';
 let statusResetTimer = null;
-let statusClickBound = false;
 const isMobile = window.matchMedia('(max-width: 900px)').matches;
 const SEARCH_STORAGE_KEY = 'flight_search_term'; // localStorage key
 const ORIGIN_STORAGE_KEY = 'flight_origin_filter'; // localStorage key for origin filter
@@ -699,12 +698,21 @@ function renderFlights(flights) {
  * - 行動版：透過 CSS 隱藏標籤，僅顯示時間或日期
  * @param {number|string|Date} timestamp
  */
+function initStatusLastUpdated() {
+  const statusEl = document.getElementById('status');
+  if (!statusEl) return;
+
+  statusEl.style.cursor = 'pointer';
+  statusEl.title = '點擊可切換更新時間與日期';
+  statusEl.addEventListener('click', toggleStatusLastUpdatedDisplay);
+}
+
 function setStatusLastUpdated(timestamp) {
   const statusEl = document.getElementById('status');
   if (!statusEl) return;
 
   const parsedTimestamp = new Date(timestamp);
-  if (Number.isNaN(parsedTimestamp.getTime())) {
+  if (isNaN(parsedTimestamp.getTime())) {
     console.warn('[status] 無效的最後更新時間', timestamp);
     return;
   }
@@ -724,13 +732,6 @@ function setStatusLastUpdated(timestamp) {
 
     statusEl.appendChild(labelEl);
     statusEl.appendChild(timeEl);
-    statusEl.style.cursor = 'pointer';
-    statusEl.title = '點擊可切換更新時間與日期';
-  }
-
-  if (!statusClickBound) {
-    statusEl.addEventListener('click', toggleStatusLastUpdatedDisplay);
-    statusClickBound = true;
   }
 
   lastUpdatedTimestamp = parsedTimestamp;
@@ -747,7 +748,10 @@ function renderStatusLastUpdated() {
 
   if (statusDisplayMode === 'date') {
     labelEl.textContent = '資料日期：';
-    timeEl.textContent = lastUpdatedTimestamp.toLocaleDateString('zh-TW');
+    const year = lastUpdatedTimestamp.getFullYear();
+    const month = String(lastUpdatedTimestamp.getMonth() + 1).padStart(2, '0');
+    const date = String(lastUpdatedTimestamp.getDate()).padStart(2, '0');
+    timeEl.textContent = `${year}/${month}/${date}`;
     return;
   }
 
@@ -1204,6 +1208,7 @@ function getOriginText(flight) {
 window.onload = async () => {
   // 初始化搜尋功能（必須在載入資料前）
   initSearch();
+  initStatusLastUpdated();
 
   // 先載入資料
   loadData();
